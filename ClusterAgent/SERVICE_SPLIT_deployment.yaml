@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: SERVICE_SPLIT
+  name: SERVICE_SPLIT
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: SERVICE_SPLIT
+  template:
+    metadata:
+      labels:
+        app: SERVICE_SPLIT
+    spec:
+      containers:
+      - image: 172.16.17.46:8085/testreposity/testserviceimage:split_1
+        imagePullPolicy: IfNotPresent
+        name: SERVICE_SPLIT
+        ports:
+        - containerPort: 8089
+---
+apiVersion: apps/v1
+kind: Service
+metadata:
+  labels:
+    app: SERVICE_SPLIT
+  name: SERVICE_SPLIT
+  namespace: kube-com.test
+spec:
+  type: NodePort
+  ports:
+  - name: http
+    nodePort: 32095
+    port: 8089
+  selector:
+    app: SERVICE_SPLIT

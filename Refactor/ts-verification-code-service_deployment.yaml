@@ -1,0 +1,34 @@
+metadata:
+  labels:
+    app: ts-verification-code-service
+  name: ts-verification-code-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ts-verification-code-service
+  template:
+    metadata:
+      labels:
+        app: ts-verification-code-service
+    spec:
+      containers:
+      - image: 172.16.17.46:8085/testreposity/testserviceimage:split_1
+        imagePullPolicy: IfNotPresent
+        name: ts-verification-code-service
+        ports:
+        - containerPort: 8089
+---
+metadata:
+  labels:
+    app: ts-verification-code-service
+  name: ts-verification-code-service
+  namespace: kube-com.test
+spec:
+  type: NodePort
+  ports:
+  - name: http
+    nodePort: 30554
+    port: 8089
+  selector:
+    app: ts-verification-code-service

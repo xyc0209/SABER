@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: service-ingress
+  namespace: kube-test
+spec:
+  ingressClassName: nginx  # 指定 Ingress Class 为 "nginx"
+  rules:
+    - http:
+        paths:
+          - path: /api/orders
+            pathType: Prefix
+            backend:
+              service:
+                name: test-service  # 新的目标 Service 名称
+                port:
+                  number: 8090  # 新的目标 Service 的端口

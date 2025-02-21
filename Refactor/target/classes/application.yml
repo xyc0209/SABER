@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: refactorService
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDRS:10.245.1.233:8848}
+      config:
+        server-addr: ${NACOS_ADDRS:10.245.1.233:8848}
+#  jpa:
+#    database-platform: org.hibernate.dialect.MySQL8Dialect
+#    hibernate:
+#      ddl-auto: update
+#  datasource:
+#    url: "jdbc:mysql://172.16.17.38:3306/testdb?useSSL=false"
+#    username: "root"
+#    password: "passwordA123$"
+server:
+  port: 8085
+nacos:
+  addr: 10.245.1.233:8848
+clusterAgent:
+  ipandPort: 10.245.1.233:8086
+harbor:
+  host: 10.245.1.233:5000
+  project: testreposity
+detector:
+  ipandPort: 127.0.0.1:8099

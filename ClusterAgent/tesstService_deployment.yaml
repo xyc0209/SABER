@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations: {}
+  labels:
+    app: tesstService
+  name: tesstService
+  namespace: kube-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tesstService
+  template:
+    metadata:
+      annotations: {}
+      labels:
+        app: tesstService
+    spec:
+      containers:
+      - image: 10.245.1.233:5000/testreposity/test-service-3:refactor_1
+        imagePullPolicy: Always
+        name: tesstService
+        ports:
+        - containerPort: 8090
+      nodeSelector: {}
+      overhead: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations: {}
+  labels:
+    app: tesstService
+  name: tesstService
+  namespace: kube-test
+spec:
+  type: NodePort
+  ports:
+  - name: http
+    nodePort: 31810
+    port: 8090
+  selector:
+    app: tesstService
