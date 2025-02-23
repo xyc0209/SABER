@@ -8,8 +8,12 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.refactor.chain.analyzer.layer.LayerType;
 import com.refactor.chain.utils.Node;
+import com.refactor.config.DependenciesConfig;
+import com.refactor.config.GatewayConfig;
+import com.refactor.context.SystemMavenInfo;
 import com.refactor.dto.ISIInfo;
 import com.refactor.dto.SvcCallDetail;
+import com.refactor.enumeration.TemplateFile;
 import com.refactor.suggest.RefactorISISuggestion;
 import com.refactor.suggest.RefactorSPSuggestion;
 
@@ -44,6 +48,9 @@ public class RPlanner {
 
     @Autowired
     public RefactorSuggestion refactorSuggestion;
+
+    @Autowired
+    private DependenciesConfig dependenciesConfig;
 
     private static final String CONFIG_FOLDER_NAME = "config";
     public HashMap<String, SvcCallDetail> serviceCallDetails;
@@ -573,5 +580,225 @@ public class RPlanner {
         return serviceModifiedDetails;
     }
 
+    public Map<String, Map<String, String>> planNSDP(String projectPath, Map<String, String> serviceDetails) throws XmlPullParserException, IOException {
+        // 标识服务发现组件类型
+        String discovery = "nacos";
+        // 记录是否含有 eureka-server
+        String eurekaServerPath = "";
+        for (String filePath: serviceDetails.keySet()) {
+            String d = serviceDetails.get(filePath);
+            if (d.contains("nacos")) {
+                discovery = "nacos";
+            } else if (d.contains("eureka")) {
+                discovery = "eureka";
+                if (d.contains("eureka-server")) { // 记录 eureka-server
+                    eurekaServerPath = filePath;
+                }
+            }
+        }
+        Map<String, Map<String, String>> serviceModifiedDetails = new HashMap<>();
+        // 系统 pom 文件路径
+        String parentPomXml = new File(projectPath + "/pom.xml").getAbsolutePath();
+        // 检测是否添加 Spring Cloud 依赖
+        if (!MavenParserUtils.hasSpringCloud(parentPomXml)) {
+            MavenParserUtils.addMavenDependencies(parentPomXml, dependenciesConfig.getSpringCloud());
+        }
+        // 获取系统 pom 信息
+        SystemMavenInfo systemMavenInfo = MavenParserUtils.getSystemMavenInfo(projectPath);
+        if ("eureka".equals(discovery)) { // 使用的是 eureka
+            if (eurekaServerPath.isEmpty()) { // 不存在 eureka-server
+                // 获取 Eureka 服务端模板
+                SpringBootProjectDownloaderUtils.downloadProject("eureka-server",
+                        "java", systemMavenInfo.getSpringBootVersion(), systemMavenInfo.getGroupId(),
+                        "eureka-server", systemMavenInfo.getGroupId() + "." + "eurekaserver",
+                        systemMavenInfo.getJavaVersion(), Collections.singletonList("web"), projectPath);
+                MavenParserUtils.addModule(parentPomXml, "eureka-server");
+                String eurekaServerPomXml = new File(projectPath + "/eureka-server/pom.xml").getAbsolutePath();
+                eurekaServerPath = new File(projectPath + "/eureka-server").getAbsolutePath();
+                // 添加服务端依赖
+                MavenParserUtils.addMavenDependencies(eurekaServerPomXml, dependenciesConfig.getEurekaServer());
+                // 指定父 pom 信息
+                MavenParserUtils.setParent(eurekaServerPomXml, systemMavenInfo.getGroupId(), systemMavenInfo.getArtifactId(), systemMavenInfo.getVersion());
+                // 启动类添加注解
+                String applicationJavaPath = new File(projectPath + "/eureka-server/src/main/java/" + systemMavenInfo.getGroupId().replace('.', '/') + "/eurekaserver" + "/EurekaServerApplication.java").getAbsolutePath();
+                JavaParserUtils.addAnnotation(applicationJavaPath, "@EnableEurekaServer", "org.springframework.cloud.netflix.eureka.server.EnableEurekaServer");
+                // 服务端配置
+                String eurekaServerYamlPath = new File(projectPath + "/eureka-server/src/main/resources/application.properties").getAbsolutePath();
+                FileFactory.updateApplicationYamlOrProperties(eurekaServerYamlPath, TemplateFile.EUREKA_SERVER);
+            }
+            // 获取 eureka-server 的 url
+            Map<String, Object> eurekaServerConfigurations = YamlAndPropertiesParserUtils.getConfigurations(eurekaServerPath);
+            Map<String, Object> eurekaClientConfigurations = YamlAndPropertiesParserUtils.transStringToMap("eureka.client.service-url.defaultZone", eurekaServerConfigurations.getOrDefault("eureka.client.service-url.defaultZone", 8888));
+            String eurekaServerPomXml = new File(eurekaServerPath + "/pom.xml").getAbsolutePath();
+            // 为其它模块添加 Eureka 客户端依赖和配置
+            for (String pomXmlPath: FileFactory.getPomXmlPaths(projectPath)) {
+                if (!pomXmlPath.equals(parentPomXml) && !pomXmlPath.equals(eurekaServerPomXml)) { // 非父 pom 文件并且非 eureka-server pom 文件
+                    MavenParserUtils.addMavenDependencies(pomXmlPath, dependenciesConfig.getEurekaClient());
+                }
+            }
+            for (String applicationYamlOrPropertiesPath: FileFactory.getApplicationYamlOrPropertiesPaths(projectPath)) {
+                if (!applicationYamlOrPropertiesPath.contains(eurekaServerPath)) { // 非 eureka-server 配置文件
+                    FileFactory.updateApplicationYamlOrProperties(applicationYamlOrPropertiesPath, TemplateFile.EUREKA_CLIENT);
+                    FileFactory.updateApplicationYamlOrProperties(applicationYamlOrPropertiesPath, eurekaClientConfigurations);
+                }
+            }
+        } else if ("nacos".equals(discovery)) {
+            // 父 pom 添加 Spring Cloud Alibaba 依赖
+            MavenParserUtils.addMavenDependencies(parentPomXml, dependenciesConfig.getSpringCloudAlibaba());
+            // 其余模块添加 nacos 依赖
+            for (String pomXmlPath: FileFactory.getPomXmlPaths(projectPath)) {
+                if (!pomXmlPath.equals(parentPomXml)) {
+                    MavenParserUtils.addMavenDependencies(pomXmlPath, dependenciesConfig.getNacos());
+                }
+            }
+            // 其余模块更新 nacos 配置
+            for (String applicationYamlOrPropertiesPath: FileFactory.getApplicationYamlOrPropertiesPaths(projectPath)) {
+                FileFactory.updateApplicationYamlOrProperties(applicationYamlOrPropertiesPath, TemplateFile.NACOS_CLIENT);
+            }
+        }
+        Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
+        for (String filePath : filePathToMicroserviceName.keySet()) {
+            serviceModifiedDetails.put(filePathToMicroserviceName.get(filePath), FileFactory.getServiceDetails(filePath));
+        }
+        return serviceModifiedDetails;
+    }
 
+    public Map<String, Map<String, String>> planNAG(String projectPath, String discovery) throws Exception {
+        Map<String, Map<String, String>> serviceModifiedDetails = new HashMap<>();
+        // 获取系统 pom 信息
+        SystemMavenInfo systemMavenInfo = MavenParserUtils.getSystemMavenInfo(projectPath);
+        Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
+        SpringBootProjectDownloaderUtils.downloadProject("gateway", "java", systemMavenInfo.getSpringBootVersion(),
+                systemMavenInfo.getGroupId(), "gateway", systemMavenInfo.getGroupId() + "." + "gateway",
+                systemMavenInfo.getJavaVersion(), Collections.emptyList(), projectPath);
+        String parentPomXml = new File(projectPath + "/pom.xml").getAbsolutePath();
+        MavenParserUtils.addModule(parentPomXml, "gateway");
+        String gatewayPomXml = new File(projectPath + "/gateway/pom.xml").getAbsolutePath();
+        MavenParserUtils.setParent(gatewayPomXml, systemMavenInfo.getGroupId(), systemMavenInfo.getArtifactId(), systemMavenInfo.getVersion());
+        String gatewayYamlPath = new File(projectPath + "/gateway/src/main/resources/application.properties").getAbsolutePath();
+        FileFactory.deleteFile(gatewayYamlPath);
+        gatewayYamlPath = FileFactory.createFile(new File(projectPath + "/gateway/src/main/resources/application.yaml").getAbsolutePath());
+        MavenParserUtils.addMavenDependencies(gatewayPomXml, dependenciesConfig.getGateway());
+        FileFactory.updateApplicationYamlOrProperties(gatewayYamlPath, TemplateFile.GATEWAY);
+        if ("eureka".equals(discovery)) {
+            MavenParserUtils.addMavenDependencies(gatewayPomXml, dependenciesConfig.getEurekaClient());
+        } else if ("nacos".equals(discovery)) {
+            MavenParserUtils.addMavenDependencies(gatewayPomXml, dependenciesConfig.getNacos());
+        }
+        Map<String, Set<String>> microserviceNameToPreUrls = new LinkedHashMap<>();
+        for (String filePath: filePathToMicroserviceName.keySet()) {
+            String microserviceName = filePathToMicroserviceName.get(filePath);
+            List<String> javaFiles = FileFactory.getJavaFiles(filePath);
+            Set<String> preUrls = new LinkedHashSet<>();
+            for (String javaFile: javaFiles) {
+                Map<String, String> urls = JavaParserUtils.getMethodToApi(new File(javaFile));
+                for (String url: urls.values()) {
+                    if (url.length() > 1 && !url.startsWith("/{")) {
+                        int second = url.indexOf('/', 1);
+                        String preUrl = second == -1 ? url : url.substring(0, second);
+                        preUrls.add(preUrl);
+                    }
+                }
+
+            }
+            if (!preUrls.isEmpty())
+                microserviceNameToPreUrls.put(microserviceName, preUrls);
+        }
+        Map<String, Object> springCloudGateway = YamlAndPropertiesParserUtils.getSpringCloudGateway(microserviceNameToPreUrls);
+        YamlAndPropertiesParserUtils.updateApplicationYaml(gatewayYamlPath, YamlAndPropertiesParserUtils.removeCustomClasses(springCloudGateway, GatewayConfig.class));
+        filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
+        for (String filePath : filePathToMicroserviceName.keySet()) {
+            serviceModifiedDetails.put(filePathToMicroserviceName.get(filePath), FileFactory.getServiceDetails(filePath));
+        }
+        return serviceModifiedDetails;
+    }
+
+    public Map<String, Map<String, String>> planUS(String projectPath, String discovery) throws IOException, XmlPullParserException {
+        Map<String, Map<String, String>> serviceModifiedDetails = new HashMap<>();
+        SystemMavenInfo systemMavenInfo = MavenParserUtils.getSystemMavenInfo(projectPath);
+        Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
+        // 增加模块
+        SpringBootProjectDownloaderUtils.downloadProject("config-server", "java", systemMavenInfo.getSpringBootVersion(),
+                systemMavenInfo.getGroupId(), "config-server", systemMavenInfo.getGroupId() + "." + "configserver",
+                systemMavenInfo.getJavaVersion(), Collections.singletonList("web"), projectPath);
+        String parentPomXml = new File(projectPath + "/pom.xml").getAbsolutePath();
+        MavenParserUtils.addModule(parentPomXml, "config-server");
+        // 创建本地配置文件文件夹
+        String shared = FileFactory.createDirectory(projectPath + "/config-server/src/main/resources/shared");
+        // 配置父项目
+        String configServerPomXml = new File(projectPath + "/config-server/pom.xml").getAbsolutePath();
+        MavenParserUtils.setParent(configServerPomXml, systemMavenInfo.getGroupId(), systemMavenInfo.getArtifactId(), systemMavenInfo.getVersion());
+        String configServerYamlPath = new File(projectPath + "/config-server/src/main/resources/application.properties").getAbsolutePath();
+        FileFactory.deleteFile(configServerYamlPath);
+        configServerYamlPath = FileFactory.createFile(new File(projectPath + "/config-server/src/main/resources/application.yaml").getAbsolutePath());
+        YamlAndPropertiesParserUtils.updateApplicationYaml(configServerYamlPath, TemplateFile.CONFIG_SERVER);
+        // 添加注解
+        MavenParserUtils.addMavenDependencies(configServerPomXml, dependenciesConfig.getConfigServer());
+        String applicationJavaPath = new File(projectPath + "/config-server/src/main/java/" + systemMavenInfo.getGroupId().replace('.', '/') + "/configserver" + "/ConfigServerApplication.java").getAbsolutePath();
+        JavaParserUtils.addAnnotation(applicationJavaPath, "@EnableConfigServer", "org.springframework.cloud.config.server.EnableConfigServer");
+        // 添加 Config client 依赖
+        List<String> pomXmlPaths = FileFactory.getPomXmlPaths(projectPath);
+        for (String pomXmlPath : pomXmlPaths) {
+            if (!pomXmlPath.equals(parentPomXml) && !pomXmlPath.equals(configServerPomXml)) {
+                MavenParserUtils.addMavenDependencies(pomXmlPath, dependenciesConfig.getConfigClient());
+                MavenParserUtils.addMavenDependencies(pomXmlPath, dependenciesConfig.getBootstrap());
+            }
+        }
+        if ("eureka".equals(discovery)) {
+            MavenParserUtils.addMavenDependencies(configServerPomXml, dependenciesConfig.getEurekaClient());
+        } else if ("nacos".equals(discovery)) {
+            MavenParserUtils.addMavenDependencies(configServerPomXml, dependenciesConfig.getNacos());
+        }
+        for (String filePath : filePathToMicroserviceName.keySet()) {
+            String microserviceName = filePathToMicroserviceName.get(filePath);
+            if (filePath.contains("eureka"))
+                continue;
+            // 创建 bootstrap.yml 文件
+            String bootstrapYamlPath = FileFactory.createFile(filePath + "/src/main/resources/bootstrap.yml");
+            if (bootstrapYamlPath != null) {
+                YamlAndPropertiesParserUtils.updateApplicationYaml(bootstrapYamlPath, YamlAndPropertiesParserUtils.getConfigClient(microserviceName));
+                YamlAndPropertiesParserUtils.updateApplicationYaml(bootstrapYamlPath, TemplateFile.CONFIG_CLIENT);
+                String sharedYamlPath = FileFactory.createFile(shared + "/" + microserviceName + "-dev.yml");
+                if (sharedYamlPath != null) {
+                    Map<String, Object> configurations = YamlAndPropertiesParserUtils.getConfigurations(filePath);
+                    YamlAndPropertiesParserUtils.updateApplicationYaml(sharedYamlPath, configurations);
+                }
+            }
+        }
+        filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
+        for (String filePath : filePathToMicroserviceName.keySet()) {
+            serviceModifiedDetails.put(filePathToMicroserviceName.get(filePath), FileFactory.getServiceDetails(filePath));
+        }
+        return serviceModifiedDetails;
+    }
+
+    public Map<String, Map<String, String>> planEBSI(String projectPath) throws IOException {
+        Map<String, Map<String, String>> serviceModifiedDetails = new HashMap<>();
+        Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
+        Map<String, String> filePathToMicroservicePort = FileFactory.getFilePathToMicroservicePort(projectPath);
+        Map<String, List<String>> filePathToUrls = new LinkedHashMap<>();
+        for (String filePath: filePathToMicroserviceName.keySet()) {
+            List<String> javaFiles = FileFactory.getJavaFiles(filePath);
+            List<String> urls = new LinkedList<>();
+            for (String javaFile: javaFiles) {
+                Map<String, String> methodToApi = JavaParserUtils.getMethodToApi(new File(javaFile));
+                for (String url: methodToApi.values()) {
+                    urls.add(filePathToMicroservicePort.get(filePath) + url);
+                }
+            }
+            filePathToUrls.put(filePath, urls);
+            System.out.println(urls);
+        }
+        for (String filePath: filePathToUrls.keySet()) {
+            String microserviceName = filePathToMicroserviceName.get(filePath);
+            List<String> javaFiles = FileFactory.getJavaFiles(filePath);
+            for (String javaFile: javaFiles) {
+                JavaParserUtils.restTemplateUrlReplacer(javaFile, microserviceName, filePathToUrls.get(filePath));
+            }
+        }
+        for (String filePath : filePathToMicroserviceName.keySet()) {
+            serviceModifiedDetails.put(filePathToMicroserviceName.get(filePath), FileFactory.getServiceDetails(filePath));
+        }
+        return serviceModifiedDetails;
+    }
 }

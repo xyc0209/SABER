@@ -10,6 +10,7 @@ import com.refactor.Adaptive.RMonitor;
 import com.refactor.chain.analyzer.layer.LayerType;
 import com.refactor.chain.utils.Node;
 import com.refactor.context.ServiceContext;
+import com.refactor.enumeration.TemplateFile;
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 import org.springframework.stereotype.Component;
 import org.yaml.snakeyaml.DumperOptions;
@@ -37,6 +38,8 @@ public class FileFactory {
     private static final String POD_CLASS_NAME = "PodInfo.java";
     private static final String CONTAINER_CLASS_NAME = "ContainersItem.java";
     private static final String USAGE_CLASS_NAME = "Usage.java";
+
+    private static final Yaml yamlReader = new Yaml();
 
     public  static List<String> getPomFiles(String servicesDirectory) throws IOException {
         Path start= Paths.get(servicesDirectory);
@@ -1475,5 +1478,171 @@ public static List<String> getJavaFiles(String servicesDirectory) throws IOExcep
 //            }
         }
 
+    /**
+     * 删除指定目录下的含有对应字符的文件或目录
+     * @param directory 指定项目目录
+     * @param pattern 删除文件或目录的匹配规则
+     */
+    public static void deleteFilesByPattern(String directory, String pattern) throws IOException {
+        File[] files = new File(directory).listFiles();
+        if (files != null) {
+            for (File file: files) {
+                if (file.isDirectory()) {
+                    deleteFilesByPattern(file.getAbsolutePath(), pattern);
+                } else {
+                    if (file.getAbsolutePath().contains(pattern)) {
+                        Files.delete(file.toPath());
+                    }
+                }
+                if (file.isDirectory() && file.getAbsolutePath().contains(pattern)) {
+                    Files.delete(file.toPath());
+                }
+            }
+        }
+    }
+
+    /**
+     * 更新 application.yaml 或 application.properties 文件
+     * @param applicationPath 配置文件路径
+     * @param discovery 服务发现组件类型
+     * @param type 服务发现客户端或服务器
+     */
+    public static void updateApplicationYamlOrProperties(String applicationPath, String discovery, int type) throws IOException {
+        if (applicationPath.endsWith("properties")) {
+            YamlAndPropertiesParserUtils.updateApplicationProperties(applicationPath, discovery, type);
+        } else {
+            YamlAndPropertiesParserUtils.updateApplicationYaml(applicationPath, discovery, type);
+        }
+    }
+
+    public static void updateApplicationYamlOrProperties(String applicationPath, TemplateFile template) throws IOException {
+        if (applicationPath.endsWith("properties")) {
+            YamlAndPropertiesParserUtils.updateApplicationProperties(applicationPath, template);
+        } else {
+            YamlAndPropertiesParserUtils.updateApplicationYaml(applicationPath, template);
+        }
+    }
+
+    public static void updateApplicationYamlOrProperties(String applicationPath, Map<String, Object> configurations) throws IOException {
+        if (applicationPath.endsWith("properties")) {
+            YamlAndPropertiesParserUtils.updateApplicationProperties(applicationPath, configurations);
+        } else {
+            YamlAndPropertiesParserUtils.updateApplicationYaml(applicationPath, configurations);
+        }
+    }
+
+    public static List<String> getPomXmlPaths(String directory) throws IOException {
+        Path path = Paths.get(directory);
+        int maxDepth = 10;
+        Stream<Path> stream = Files.find(path, maxDepth, (filepath, attributes) -> String.valueOf(filepath).contains("pom.xml"));
+        return stream.sorted().map(String::valueOf).filter(filepath -> !String.valueOf(filepath).toLowerCase().contains(".mvn")
+                && !String.valueOf(filepath).toLowerCase().contains("gradle")).collect(Collectors.toList());
+    }
+
+    public static Map<String, String> getFilePathToMicroserviceName(String directory) throws IOException {
+        Map<String, String> filePathToMicroserviceName = new LinkedHashMap<>();
+        List<String> services = getServices(directory);
+        for (String filePath: services) {
+            List<String> applicationYamlOrProperties = getApplicationYamlOrPropertiesPaths(filePath);
+            Map<String, Object> configurations = new LinkedHashMap<>();
+            String microserviceName = "";
+            for (String applicationYamlOrProperty: applicationYamlOrProperties) {
+                if (applicationYamlOrProperty.endsWith("yml") || applicationYamlOrProperty.endsWith("yaml")) {
+                    Iterable<Object> objects = yamlReader.loadAll(Files.newInputStream(Paths.get(applicationYamlOrProperty)));
+                    for (Object o: objects) {
+                        YamlAndPropertiesParserUtils.resolveYaml(new Stack<>(), configurations, (Map<String, Object>) o);
+                    }
+                } else {
+                    YamlAndPropertiesParserUtils.resolveProperties(applicationYamlOrProperty, configurations);
+                }
+                String[] strings = filePath.split("/|\\\\");
+                microserviceName = configurations.getOrDefault("spring.application.name", strings[strings.length - 1]).toString();
+            }
+            filePathToMicroserviceName.put(filePath, microserviceName);
+        }
+        return filePathToMicroserviceName;
+    }
+
+    public static Map<String, String> getFilePathToMicroservicePort(String directory) throws IOException {
+        Map<String, String> filePathToMicroservicePort = new LinkedHashMap<>();
+        List<String> services = getServices(directory);
+        for (String filePath: services) {
+            List<String> applicationYamlOrProperties = getApplicationYamlOrPropertiesPaths(filePath);
+            Map<String, Object> configurations = new LinkedHashMap<>();
+            String port = "8080";
+            for (String applicationYamlOrProperty: applicationYamlOrProperties) {
+                if (applicationYamlOrProperty.endsWith("yml") || applicationYamlOrProperty.endsWith("yaml")) {
+                    Iterable<Object> objects = yamlReader.loadAll(Files.newInputStream(Paths.get(applicationYamlOrProperty)));
+                    for (Object o: objects) {
+                        YamlAndPropertiesParserUtils.resolveYaml(new Stack<>(), configurations, (Map<String, Object>) o);
+                    }
+                } else {
+                    YamlAndPropertiesParserUtils.resolveProperties(applicationYamlOrProperty, configurations);
+                }
+                port = configurations.getOrDefault("server.port", port).toString();
+            }
+            filePathToMicroservicePort.put(filePath, port);
+        }
+        return filePathToMicroservicePort;
+    }
+
+    public static List<String> getApplicationYamlOrPropertiesPaths(String directory) throws IOException {
+        Path parent = Paths.get(directory);
+        int maxDepth = 10;
+        Stream<Path> stream = Files.find(parent, maxDepth, (filePath, attributes) -> true);
+        return stream.sorted().map(String::valueOf).filter(filePath -> (String.valueOf(filePath).toLowerCase().endsWith("application.yml")
+                || String.valueOf(filePath).toLowerCase().endsWith("application.yaml")
+                || String.valueOf(filePath).toLowerCase().endsWith("application.properties")
+                || String.valueOf(filePath).toLowerCase().endsWith("bootstrap.yml"))
+                && !String.valueOf(filePath).toLowerCase().contains("target")).collect(Collectors.toList());
+    }
+
+    public static List<String> getServices(String directory) throws IOException {
+        File[] files = new File(directory).listFiles();
+        List<String> services = new LinkedList<>();
+        if (files != null) {
+            for (File file: files) {
+                if (file.isDirectory()) {
+                    if (file.toString().contains("src")) {
+                        boolean flag = false;
+                        List<String> javaFiles = getJavaFiles(file.toString());
+                        for (String javaFile : javaFiles) {
+                            if (JavaParserUtils.isStartupClass(javaFile)) {
+                                flag = true;
+                                break;
+                            }
+                        }
+                        if (flag) {
+                            services.add(file.toString().substring(0, file.toString().lastIndexOf("src")));
+                        }
+                    } else {
+                        services.addAll(getServices(file.toString()));
+                    }
+                }
+            }
+        }
+        return services;
+    }
+
+    public static boolean deleteFile(String filePath) {
+        File file = new File(filePath);
+        return file.delete();
+    }
+
+    public static String createFile(String filePath) throws IOException {
+        File file = new File(filePath);
+        if (file.createNewFile()) {
+            return file.getAbsolutePath();
+        }
+        return null;
+    }
+
+    public static String createDirectory(String filePath) {
+        File file = new File(filePath);
+        if (file.mkdirs()) {
+            return file.getAbsolutePath();
+        }
+        return null;
+    }
 }
 

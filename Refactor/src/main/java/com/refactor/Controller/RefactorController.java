@@ -72,4 +72,28 @@ public class RefactorController {
         refactorService.resloveTest(requestItem, httpHeaders);
         return "CONGRATULATION! REFACTOR SHARING PERSISTENCE SUCCESS!";
     }
+
+    @PostMapping("/refactor/nag")
+    public String resolveNAG(@RequestBody RequestItem requestItem, @RequestHeader HttpHeaders httpHeaders) throws Exception {
+        refactorService.resolveNAG(requestItem.getServicesPath(), httpHeaders);
+        return "CONGRATULATION! REFACTOR NO API GATEWAY SUCCESS!";
+    }
+
+    @PostMapping("/refactor/nsdp")
+    public String resloveNSDP(@RequestBody RequestItem requestItem, @RequestHeader HttpHeaders httpHeaders) throws IOException, XmlPullParserException {
+        refactorService.resolveNSDP(requestItem.getServicesPath(), httpHeaders);
+        return "CONGRATULATION! REFACTOR NANO SERVICE DISCOVERY PATTERN SUCCESS!";
+    }
+
+    @PostMapping("/refactor/us")
+    public String resloveUS(@RequestBody RequestItem requestItem, @RequestHeader HttpHeaders httpHeaders) throws IOException, XmlPullParserException {
+        refactorService.resolveUS(requestItem.getServicesPath(), httpHeaders);
+        return "CONGRATULATION! REFACTOR UNNECESSARY SETTINGS SUCCESS!";
+    }
+
+    @PostMapping("/refactor/ebsi")
+    public String resloveEBSI(@RequestBody RequestItem requestItem, @RequestHeader HttpHeaders httpHeaders) throws IOException {
+        refactorService.resolveEBSI(requestItem.getServicesPath(), httpHeaders);
+        return "CONGRATULATION! REFACTOR ENDPOINT BASED SERVICE INTERACTION SUCCESS!";
+    }
 }

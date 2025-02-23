@@ -1,6 +1,7 @@
 package com.refactor.Adaptive;
 
 import com.github.javaparser.ParseException;
+import com.refactor.config.DependenciesConfig;
 import com.refactor.detector.SharedDatabaseAndServiceIntimacyService;
 import com.refactor.dto.ApiVersionContext;
 import com.refactor.dto.RequestItem;
@@ -10,12 +11,15 @@ import com.refactor.trace.SvcTransRes;
 import com.refactor.trace.TraceChainNode;
 import com.refactor.trace.TraceDetail;
 import com.refactor.utils.*;
+import org.apache.maven.model.Dependency;
+import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
+import javax.annotation.Resource;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -36,6 +40,9 @@ public class RAnalyser {
 
     @Autowired
     public SharedDatabaseAndServiceIntimacyService sharedDatabaseAndServiceIntimacyService;
+
+    @Resource
+    private DependenciesConfig dependenciesConfig;
 
      public List<String> detectMS(Map<String, String> namePathMap, Map<String, List<String>> svcEntityMap) throws IOException, InterruptedException {
         //任一种算法检出，即添加到filteredSvcs
@@ -317,6 +324,98 @@ public class RAnalyser {
             }
             return servicesPath;
         }
+    }
+
+    public Map<String, String> detectNSDP(String projectPath, Map<String, String> filePathToMicroserviceName) throws XmlPullParserException, IOException {
+        Map<String, String> result = new LinkedHashMap<>();
+        for (String filePath: filePathToMicroserviceName.keySet()) { // 遍历每个模块
+            List<Dependency> dependencies = MavenParserUtils.getMavenDependencies(new File(filePath + "/pom.xml").getAbsolutePath());
+            result.put(filePath, "");
+            for (Dependency dependency: dependencies) {
+                if (dependency.getArtifactId().contains("eureka-server")) {
+                    result.put(filePath, "eureka-server");
+                } else if (dependency.getArtifactId().contains("eureka-client")) {
+                    result.put(filePath, "eureka-client");
+                } else if (dependency.getArtifactId().contains("nacos")) {
+                    result.put(filePath, "nacos");
+                }
+            }
+        }
+        return result;
+    }
+
+    public int detectedNAG(String projectPath, Map<String, String> filePathToMicroserviceName) throws IOException, XmlPullParserException {
+        int result = 0;
+        for (String filePath: filePathToMicroserviceName.keySet()) {
+            List<String> pomXmlPaths = FileFactory.getPomXmlPaths(filePath);
+            for (String pomXmlPath: pomXmlPaths) {
+                List<Dependency> dependencies = MavenParserUtils.getMavenDependencies(pomXmlPath);
+                for (Dependency dependency: dependencies) {
+                    if (dependency.getArtifactId().contains("gateway")) {
+                        result += 1;
+                        Map<String, Object> configurations = YamlAndPropertiesParserUtils.getConfigurations(filePath);
+                        for (String key: configurations.keySet()) {
+                            if (key.startsWith("spring.cloud.gateway")) {
+                                result += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    public Map<String, String> detectedUS(String projectPath, Map<String, String> filePathToMicroserviceName) throws IOException, XmlPullParserException {
+        Map<String, String> result = new LinkedHashMap<>();
+        for (String filePath: filePathToMicroserviceName.keySet()) {
+            List<String> pomXmlPaths = FileFactory.getPomXmlPaths(filePath);
+            for (String pomXmlPath: pomXmlPaths) {
+                List<Dependency> dependencies = MavenParserUtils.getMavenDependencies(pomXmlPath);
+                for (Dependency dependency: dependencies) {
+                    if (dependency.getArtifactId().equals(dependenciesConfig.getConfigServer().getArtifactId())) {
+                        result.put(filePath, "config-server");
+                    } else if (dependency.getArtifactId().equals(dependenciesConfig.getConfigClient().getArtifactId())) {
+                        result.put(filePath, "config-client");
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 检测 EBSI
+     * @param projectPath 系统路径
+     * @param filePathToMicroserviceName 微服务模块路径与名称的映射
+     * @return 检测结果 key 为微服务名称 value 为存在硬编码的 Java 文件列表
+     * @throws IOException
+     */
+    public Map<String, List<String>> detectedEBSI(String projectPath, Map<String, String> filePathToMicroserviceName) throws IOException {
+        Map<String, List<String>> result = new LinkedHashMap<>();
+        Map<String, String> filePathToMicroservicePort = FileFactory.getFilePathToMicroservicePort(projectPath);
+        for (String currentFilePath: filePathToMicroserviceName.keySet()) {
+            String microserviceName = filePathToMicroserviceName.get(currentFilePath);
+            List<String> currentJavaFiles = FileFactory.getJavaFiles(currentFilePath);
+            List<String> urls = new LinkedList<>(); // 存储当前模块所有接口的 url
+            for (String javaFile: currentJavaFiles) {
+                Map<String, String> methodToApi = JavaParserUtils.getMethodToApi(new File(javaFile));
+                for (String url: methodToApi.values()) {
+                    urls.add(filePathToMicroservicePort.get(currentFilePath) + url); // 添加端口
+                }
+            }
+            for (String filePath: filePathToMicroserviceName.keySet()) {
+                List<String> javaFiles = FileFactory.getJavaFiles(filePath);
+                for (String javaFile: javaFiles) {
+                    // TODO 判断是否含有硬编码交互 JavaParserUtils.restTemplateUrlReplacer(javaFile, microserviceName, urls);
+                    if (!result.containsKey(microserviceName)) {
+                        result.put(microserviceName, new LinkedList<>());
+                    }
+                    result.get(microserviceName).add(javaFile);
+                }
+            }
+        }
+        return result;
     }
 
     public static void main(String[] args) throws Exception {

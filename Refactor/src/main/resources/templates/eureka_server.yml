@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: eureka-server
+server:
+  port: 8888
+eureka:
+  # 开启之前需要修改一下客户端设置（虽然是服务端
+  client:
+    # 由于我们是作为服务端角色，所以不需要获取服务端，改为 false，默认为 true
+    fetch-registry: false
+    # 暂时不需要将自己也注册到 Eureka
+    register-with-eureka: false
+    # 将 eureka 服务端指向自己
+    service-url:
+      defaultZone: http://localhost:8888/eureka

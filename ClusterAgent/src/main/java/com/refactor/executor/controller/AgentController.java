@@ -110,6 +110,42 @@ public class AgentController {
         return "Resources delete success";
     }
 
+    @PostMapping("/deployNSDP")
+    public String deployNSDPBatch(@RequestBody ServiceDetail serviceDetail) throws ApiException {
+        Map<String, Map<String, String>> svcDetail = serviceDetail.getServiceDetail();
+        k8sClusterAgent.createDeploymentCSByBatch(serviceDetail.getResultCSCall(), svcDetail);
+        k8sClusterAgent.deleteResourcesByBatch(svcDetail);
+        ingressAgent.operateIngressByBatch(k8sClusterAgent.getClient(), svcDetail);
+        return "ALL OPERATIONS SUCCESS";
+    }
+
+    @PostMapping("/deployUS")
+    public String deployUSBatch(@RequestBody ServiceDetail serviceDetail) throws ApiException {
+        Map<String, Map<String, String>> svcDetail = serviceDetail.getServiceDetail();
+        k8sClusterAgent.createDeploymentCSByBatch(serviceDetail.getResultCSCall(), svcDetail);
+        k8sClusterAgent.deleteResourcesByBatch(svcDetail);
+        ingressAgent.operateIngressByBatch(k8sClusterAgent.getClient(), svcDetail);
+        return "ALL OPERATIONS SUCCESS";
+    }
+
+    @PostMapping("/deployNAG")
+    public String deployNAGBatch(@RequestBody ServiceDetail serviceDetail) throws ApiException {
+        Map<String, Map<String, String>> svcDetail = serviceDetail.getServiceDetail();
+        k8sClusterAgent.createDeploymentCSByBatch(serviceDetail.getResultCSCall(), svcDetail);
+        k8sClusterAgent.deleteResourcesByBatch(svcDetail);
+        ingressAgent.operateIngressByBatch(k8sClusterAgent.getClient(), svcDetail);
+        return "ALL OPERATIONS SUCCESS";
+    }
+
+    @PostMapping("/deployEBSI")
+    public String deployEBSIBatch(@RequestBody ServiceDetail serviceDetail) throws ApiException {
+        Map<String, Map<String, String>> svcDetail = serviceDetail.getServiceDetail();
+        k8sClusterAgent.createDeploymentCSByBatch(serviceDetail.getResultCSCall(), svcDetail);
+        k8sClusterAgent.deleteResourcesByBatch(svcDetail);
+        ingressAgent.operateIngressByBatch(k8sClusterAgent.getClient(), svcDetail);
+        return "ALL OPERATIONS SUCCESS";
+    }
+
 
     @PostMapping("/test")
     public String testAPI(@RequestBody ServiceDetail serviceDetail) throws IOException, ApiException {

@@ -176,6 +176,65 @@ public class RAdaptiveSystem {
 
     }
 
+    public Map<String, Map<String, String>> refactorNSDP(String projectPath) throws IOException, XmlPullParserException {
+        Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
+        Map<String, String> detectedResult = this.analyser.detectNSDP(projectPath, filePathToMicroserviceName);
+        boolean hasDiscovery = true;
+        for (String pattern: detectedResult.values()) {
+            if (!pattern.contains("nacos") && !pattern.contains("eureka")) {
+                hasDiscovery = false;
+            }
+        }
+        if (!hasDiscovery) {
+            System.out.println(detectedResult);
+            return this.planner.planNSDP(projectPath, detectedResult);
+        }
+        return null;
+    }
+
+    public Map<String, Map<String, String>> refactorNAG(String projectPath) throws Exception {
+        Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
+        int detectedResult = this.analyser.detectedNAG(projectPath, filePathToMicroserviceName);
+        System.out.println(detectedResult);
+        if (detectedResult != 2) {
+            String discovery = "nacos";
+            Map<String, String> nsdp = this.analyser.detectNSDP(projectPath, filePathToMicroserviceName);
+            for (String value: nsdp.values()) {
+                if (value.contains("eureka")) {
+                    discovery = "eureka";
+                } else if (value.contains("nacos")) {
+                    discovery = "nacos";
+                }
+            }
+            System.out.println(discovery);
+            // return this.planner.planNAG(projectPath, discovery);
+        }
+        return null;
+    }
+
+    public Map<String, Map<String, String>> refactorUS(String projectPath) throws XmlPullParserException, IOException {
+        Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
+        Map<String, String> detectedResult = this.analyser.detectedUS(projectPath, filePathToMicroserviceName);
+        Map<String, String> nsdp = this.analyser.detectNSDP(projectPath, filePathToMicroserviceName);
+        String discovery = "nacos";
+        for (String value: nsdp.values()) {
+            if (value.contains("eureka")) {
+                discovery = "eureka";
+            } else if (value.contains("nacos")) {
+                discovery = "nacos";
+            }
+        }
+        if (detectedResult.size() != filePathToMicroserviceName.size()) {
+            // return this.planner.planUS(projectPath, discovery);
+            System.out.println(detectedResult);
+        }
+        return null;
+    }
+
+    public Map<String, Map<String, String>> refactorEBSI(String projectPath) throws IOException {
+        return this.planner.planEBSI(projectPath);
+    }
+
     public static void main(String[] args) throws IOException, ParseException, XmlPullParserException, InterruptedException {
         RAdaptiveSystem rAdaptiveSystem = new RAdaptiveSystem();
 //        String projectPath = "D:\\code\\demo-collection\\Service-Demo";
