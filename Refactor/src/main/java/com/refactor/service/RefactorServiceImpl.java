@@ -1,6 +1,7 @@
 package com.refactor.service;
 
 import com.github.javaparser.ParseException;
+import com.google.protobuf.ServiceException;
 import com.refactor.Adaptive.RAdaptiveSystem;
 import com.refactor.dto.RequestItem;
 import com.refactor.dto.ServiceDetail;
@@ -43,19 +44,19 @@ public class RefactorServiceImpl {
         System.out.println("clusterIPandPort"+clusterIPandPort);
         Map<String, Map<String, String>> serviceDetails = rAdaptiveSystem.refactorMS(projectPath);
         ServiceDetail serviceDetailTrransfer = new ServiceDetail();
-//        serviceDetailTrransfer.setServiceDetail(serviceDetails);
-//        System.out.println("serviceDetails: "+serviceDetails.toString());
-//        HttpEntity requestEntity = new HttpEntity(serviceDetailTrransfer, httpHeaders);
-//        ResponseEntity<String> re = restTemplate.exchange(
-//                "http://" + clusterIPandPort + "/api/v1/clusteragent/deploy" ,
-//                HttpMethod.POST,
-//                requestEntity,
-//                String.class);
-//        return re.getBody();
-        return null;
+        serviceDetailTrransfer.setServiceDetail(serviceDetails);
+        System.out.println("serviceDetails: "+serviceDetails.toString());
+        HttpEntity requestEntity = new HttpEntity(serviceDetailTrransfer, httpHeaders);
+        ResponseEntity<String> re = restTemplate.exchange(
+                "http://" + clusterIPandPort + "/api/v1/clusteragent/deploy" ,
+                HttpMethod.POST,
+                requestEntity,
+                String.class);
+        return re.getBody();
+//        return null;
     }
 
-    public String resloveCS(String projectPath, HttpHeaders httpHeaders) throws IOException, XmlPullParserException {
+    public String resloveCS(String projectPath, HttpHeaders httpHeaders) throws IOException, XmlPullParserException, ServiceException {
         System.out.println("clusterIPandPort"+clusterIPandPort);
         ServiceDetail serviceDetailTrransfer = new ServiceDetail();
         Map<String, Map<String, String>> serviceDetails = rAdaptiveSystem.refactorCS(projectPath, serviceDetailTrransfer);
@@ -70,7 +71,7 @@ public class RefactorServiceImpl {
         return re.getBody();
     }
 
-    public String resloveSC(String projectPath, HttpHeaders httpHeaders) throws IOException, XmlPullParserException {
+    public String resloveSC(String projectPath, HttpHeaders httpHeaders) throws IOException, XmlPullParserException, ServiceException {
         System.out.println("clusterIPandPort"+clusterIPandPort);
         ServiceDetail serviceDetailTrransfer = new ServiceDetail();
         Map<String, Map<String, String>> serviceDetails = rAdaptiveSystem.refactorSC(projectPath, serviceDetailTrransfer);
@@ -99,30 +100,30 @@ public class RefactorServiceImpl {
         System.out.println("clusterIPandPort"+clusterIPandPort);
         ServiceDetail serviceDetailTrransfer = new ServiceDetail();
         Map<String, Map<String, String>> serviceDetails = rAdaptiveSystem.refactorNAV(projectPath);
-//        serviceDetailTrransfer.setServiceDetail(serviceDetails);
-//        System.out.println("serviceDetails: "+serviceDetails.toString());
-//        HttpEntity requestEntity = new HttpEntity(serviceDetailTrransfer, httpHeaders);
-//        ResponseEntity<String> re = restTemplate.exchange(
-//                "http://" + clusterIPandPort + "/api/v1/clusteragent/deploy" ,
-//                HttpMethod.POST,
-//                requestEntity,
-//                String.class);
-//        return re.getBody();
-        return "SUCCESS";
+        serviceDetailTrransfer.setServiceDetail(serviceDetails);
+        System.out.println("serviceDetails: "+serviceDetails.toString());
+        HttpEntity requestEntity = new HttpEntity(serviceDetailTrransfer, httpHeaders);
+        ResponseEntity<String> re = restTemplate.exchange(
+                "http://" + clusterIPandPort + "/api/v1/clusteragent/deploy" ,
+                HttpMethod.POST,
+                requestEntity,
+                String.class);
+        return re.getBody();
+//        return "SUCCESS";
     }
-    public String resloveNS(String projectPath, HttpHeaders httpHeaders) throws IOException, InterruptedException {
+    public String resloveNS(String projectPath, HttpHeaders httpHeaders) throws IOException, InterruptedException, ServiceException {
         Map<String, Map<String, String>> serviceDetails = rAdaptiveSystem.refactorNS(projectPath);
-//        ServiceDetail serviceDetailTrransfer = new ServiceDetail();
-//        serviceDetailTrransfer.setServiceDetail(serviceDetails);
-//        System.out.println("serviceDetails: "+serviceDetails.toString());
-//        HttpEntity requestEntity = new HttpEntity(serviceDetailTrransfer, httpHeaders);
-//        ResponseEntity<String> re = restTemplate.exchange(
-//                "http://" + clusterIPandPort + "/api/v1/clusteragent/deploy" ,
-//                HttpMethod.POST,
-//                requestEntity,
-//                String.class);
-//        return re.getBody();
-        return null;
+        ServiceDetail serviceDetailTrransfer = new ServiceDetail();
+        serviceDetailTrransfer.setServiceDetail(serviceDetails);
+        System.out.println("serviceDetails: "+serviceDetails.toString());
+        HttpEntity requestEntity = new HttpEntity(serviceDetailTrransfer, httpHeaders);
+        ResponseEntity<String> re = restTemplate.exchange(
+                "http://" + clusterIPandPort + "/api/v1/clusteragent/deploy" ,
+                HttpMethod.POST,
+                requestEntity,
+                String.class);
+        return re.getBody();
+//        return null;
 
     }
     public String resloveSP(String projectPath, HttpHeaders httpHeaders) throws IOException {

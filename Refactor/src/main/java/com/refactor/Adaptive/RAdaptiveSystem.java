@@ -1,6 +1,7 @@
 package com.refactor.Adaptive;
 
 import com.github.javaparser.ParseException;
+import com.google.protobuf.ServiceException;
 import com.refactor.chain.analyzer.layer.LayerType;
 import com.refactor.chain.utils.Node;
 import com.refactor.dto.ChainKey;
@@ -78,12 +79,12 @@ public class RAdaptiveSystem {
 
     }
 
-    public Map<String, Map<String, String>>  refactorNS(String projectPath) throws IOException, InterruptedException {
+    public Map<String, Map<String, String>>  refactorNS(String projectPath) throws IOException, InterruptedException, ServiceException {
         Map<String, List<Node>>  callchain = this.monitor.getCommunities(projectPath);
         Map<String, String> namePathMap = FileFactory.getNamePathMap(this.monitor, projectPath);
         Map<String, List<String>> svcEntityMap = FileFactory.getSvcEntityMap(this.monitor, projectPath, callchain);
         int windowSize = 1;
-        List<SvcTransRes> svcTransResList = this.monitor.getResList(windowSize);
+        List<SvcTransRes> svcTransResList = this.monitor.getResList(windowSize).getData();
         Map<String,List<String>> resultPaths = this.analyser.detectNano(namePathMap, svcEntityMap);
         if(!resultPaths.get("nano").isEmpty()){
             Map<String, Map<String, String>> svcDetails = this.planner.planNano(projectPath, svcTransResList, resultPaths.get("normal"), resultPaths.get("nano"), svcEntityMap, namePathMap);
@@ -97,10 +98,10 @@ public class RAdaptiveSystem {
 
     }
 
-    public Map<String, Map<String, String>> refactorCS(String projectPath,  ServiceDetail serviceDetailTrransfer) throws IOException, XmlPullParserException {
+    public Map<String, Map<String, String>> refactorCS(String projectPath,  ServiceDetail serviceDetailTrransfer) throws IOException, XmlPullParserException, ServiceException {
 
         int windowSize = 1;
-        List<SvcTransRes> svcTransResList = this.monitor.getResList(windowSize);
+        List<SvcTransRes> svcTransResList = this.monitor.getResList(windowSize).getData();
         List<Set<String>>  resultCSCall = this.analyser.detectCS(svcTransResList);
         if (!resultCSCall.isEmpty()) {
             serviceDetailTrransfer.setResultCSCall(resultCSCall);
@@ -114,10 +115,10 @@ public class RAdaptiveSystem {
 
     }
 
-    public Map<String, Map<String, String>> refactorSC(String projectPath,  ServiceDetail serviceDetailTrransfer) throws IOException, XmlPullParserException {
+    public Map<String, Map<String, String>> refactorSC(String projectPath,  ServiceDetail serviceDetailTrransfer) throws IOException, XmlPullParserException, ServiceException {
 
         int windowSize = 1;
-        List<SvcTransRes> svcTransResList = this.monitor.getResList(windowSize);
+        List<SvcTransRes> svcTransResList = this.monitor.getResList(windowSize).getData();
         Map<List<String>, Integer> resultMap = this.analyser.detectSC(svcTransResList);
         List<ChainKey> chainKeyList = new ArrayList<>();
         for (Map.Entry<List<String>, Integer> entry : resultMap.entrySet()) {

@@ -73,12 +73,7 @@ public class RExecutor {
     }
 
 
-//    private static void changeDirectory(String path) throws IOException, InterruptedException {
-//        System.out.println("path"+path);
-//        System.out.println(getPathBeforeFirstSeparator(path));
-////        executeCommand("cd", getPathBeforeFirstSeparator(path));
-//        executeCommand("cd", path, "mvn", "clean", "package");
-//    }
+
     private static void changeDirectory(String path){
         System.setProperty("user.dir", path);
     }
@@ -102,9 +97,7 @@ public class RExecutor {
         executeCommand(svcPath,"mvn", "clean", "package");
     }
 
-//    private static void buildDockerImage() throws IOException, InterruptedException {
-//        executeCommand("docker", "build", "-t", HARBOR_HOST + "/" + HARBOR_PROJECT + "/" + IMAGE_NAME + ":" + IMAGE_TAG, ".");
-//    }
+
     private static void buildDockerImage(String imageName, String dockerfilePath) {
         try {
             executeCommand(dockerfilePath, "docker", "build", "-t", imageName, ".");
@@ -150,42 +143,29 @@ public class RExecutor {
         System.out.println("PUSH SUCESS" + executeCommand("", "docker", "push", imageName));
     }
 
-//    private static void executeCommand(String... command) throws IOException, InterruptedException {
-//        List<String> fullCommand = new ArrayList<>();
-//        fullCommand.add("cmd.exe");
-//        fullCommand.add("/c");
-//        System.out.println("Arrays.asList(command)"+Arrays.asList(command));
-//        fullCommand.addAll(Arrays.asList(command));
-//
-//        Process process = new ProcessBuilder(fullCommand).inheritIO().start();
-//        int exitCode = process.waitFor();
-//        if (exitCode != 0) {
-//            throw new IOException("Command failed with exit code: " + exitCode);
-//        }
-//    }
-private static boolean executeCommand(String workingDirectory, String... command) throws IOException, InterruptedException {
-    List<String> fullCommand = new ArrayList<>();
-    if (os.contains("win")) {
-        fullCommand.add("cmd.exe");
-        fullCommand.add("/c");
-        fullCommand.add("cd");
-        fullCommand.add(workingDirectory);
-        fullCommand.add("&&");
-        fullCommand.addAll(Arrays.asList(command));
-    } else {
-        // Linux/Unix 系统的命令
-        fullCommand = new ArrayList<>();
-        fullCommand.add("/bin/bash");
-        fullCommand.add("-c");
-        fullCommand.add("cd " + workingDirectory + " && " + String.join(" ", command));
-    }
+    private static boolean executeCommand(String workingDirectory, String... command) throws IOException, InterruptedException {
+        List<String> fullCommand = new ArrayList<>();
+        if (os.contains("win")) {
+            fullCommand.add("cmd.exe");
+            fullCommand.add("/c");
+            fullCommand.add("cd");
+            fullCommand.add(workingDirectory);
+            fullCommand.add("&&");
+            fullCommand.addAll(Arrays.asList(command));
+        } else {
+            // Linux/Unix 系统的命令
+            fullCommand = new ArrayList<>();
+            fullCommand.add("/bin/bash");
+            fullCommand.add("-c");
+            fullCommand.add("cd " + workingDirectory + " && " + String.join(" ", command));
+        }
 
-    Process process = new ProcessBuilder(fullCommand).inheritIO().start();
-    int exitCode = process.waitFor();
-    if (exitCode != 0) {
-        throw new IOException("Command failed with exit code: " + exitCode);
+        Process process = new ProcessBuilder(fullCommand).inheritIO().start();
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            throw new IOException("Command failed with exit code: " + exitCode);
+        }
+        return true;
     }
-    return true;
-}
 
 }

@@ -45,11 +45,11 @@ public class RAnalyser {
     private DependenciesConfig dependenciesConfig;
 
      public List<String> detectMS(Map<String, String> namePathMap, Map<String, List<String>> svcEntityMap) throws IOException, InterruptedException {
-        //任一种算法检出，即添加到filteredSvcs
-        // MARS策略
-         System.out.println("namePathMap "+namePathMap.toString());
+        //If any algorithm detects, add it to filteredSvcs
+        // MARS strategy
+//         System.out.println("namePathMap "+namePathMap.toString());
          Map<String, Integer> svcLocs= FileFactory.getSvcLocs(namePathMap);
-         System.out.println("svcLocs" +svcLocs.toString());
+//         System.out.println("svcLocs" +svcLocs.toString());
          int totalLines = svcLocs.values().stream()
                  .mapToInt(Integer::intValue)
                  .sum();  // 求和
@@ -58,18 +58,18 @@ public class RAnalyser {
          List<String> filteredSvcs = svcLocs.entrySet().stream()
                  .filter(entry ->{
                      System.out.println("entry.getValue()" +entry.getValue());
-                     return entry.getValue() > threshold;} )  // 过滤条件
-                 .map(Map.Entry::getKey)  // 提取 key
-                 .collect(Collectors.toList());  // 收集成 List
+                     return entry.getValue() > threshold;} )  // Filter condition
+                 .map(Map.Entry::getKey)
+                 .collect(Collectors.toList());
          System.out.println("filteredSvcs --mars"+filteredSvcs.toString());
          if (svcEntityMap == null)
              return filteredSvcs;
-         //Static Analysis策略
+         //Static Analysis strategy
          int totalSize = svcEntityMap.values().stream()
                  .mapToInt(List::size)  // 获取每个 List 的 size
                  .sum();  // 求和
          // 计算 Map 中 List 的数量（即条目数量）
-         System.out.println("svcEntityMap.toString"+svcEntityMap.toString());
+//         System.out.println("svcEntityMap.toString"+svcEntityMap.toString());
          int totalLists = svcEntityMap.size();
          // 计算平均值
          double averageSize = totalLists > 0 ? (double) totalSize / totalLists : 0;
@@ -80,7 +80,7 @@ public class RAnalyser {
              int size = entry.getValue().size();
              String servicePath = namePathMap.get(entry.getKey());
              double difference = Math.abs(size - averageSize);  // 计算差值的绝对值
-             System.out.println("difference: "+difference + "threshold: " + threshold2);
+//             System.out.println("difference: "+difference + "threshold: " + threshold2);
              if (difference > threshold2 && !filteredSvcs.contains(servicePath)) {
                  filteredSvcs.add(servicePath);  // 记录超出阈值的项
              }
@@ -94,11 +94,11 @@ public class RAnalyser {
         nanoPaths.put("nano",new ArrayList<>());
         nanoPaths.put("normal",new ArrayList<>());
         // MARS策略
-        System.out.println("namePathMap " + namePathMap.toString());
+//        System.out.println("namePathMap " + namePathMap.toString());
         Map<String, Integer> svcLocs = FileFactory.getSvcLocs(namePathMap);
         Map<String, Long> svcFiles = FileFactory.getSvcFiles(namePathMap);
-        System.out.println("svcLocs" +svcLocs.toString());
-        System.out.println("svcFiles" +svcFiles.toString());
+//        System.out.println("svcLocs" +svcLocs.toString());
+//        System.out.println("svcFiles" +svcFiles.toString());
         int totalLines = svcLocs.values().stream()
                 .mapToInt(Integer::intValue)
                 .sum();  // 求和
@@ -107,11 +107,10 @@ public class RAnalyser {
                 .sum();  // 求和
         double threshold = (double) totalLines / namePathMap.size() * 0.5;
         double threshold2 = (double) totalFiles / namePathMap.size() * 0.5;
-        System.out.println("threshold "+threshold);
-        System.out.println("threshold2 "+threshold2);
+//        System.out.println("threshold "+threshold);
+//        System.out.println("threshold2 "+threshold2);
         List<String> filteredSvcs = svcLocs.entrySet().stream()
                 .filter(entry ->{
-                    System.out.println("entry.getValue()" +entry.getValue());
                     if (entry.getValue() < threshold && svcFiles.get(entry.getKey()) < threshold2){
                         nanoPaths.get("nano").add(entry.getKey());
                         return true;
@@ -123,15 +122,10 @@ public class RAnalyser {
                    } )  // 过滤条件
                 .map(Map.Entry::getKey)  // 提取 key
                 .collect(Collectors.toList());  // 收集成 List
-        System.out.println("filteredSvcs --mars"+filteredSvcs.toString());
 
-//        if (svcEntityMap == null)
-//            return filteredSvcs;
-        // 检测逻辑
         return nanoPaths;
     }
 
-    // 获得每个服务对应的路径
 
 
     public List<Set<String>>  detectCS(List<SvcTransRes> svcTransResList){
@@ -301,12 +295,6 @@ public class RAnalyser {
     public List<Set<String>> detectSP(String projectPath,  Map<String, String> namePathMap) throws IOException {
         HttpHeaders httpHeaders = new HttpHeaders();
         List<Set<String>> servicesPath =new ArrayList<>();
-//        HttpEntity requestEntity = new HttpEntity(requestItem, httpHeaders);
-//        ResponseEntity<SharedDatabaseContext> response = restTemplate.exchange(
-//                "http://" + detectorIPandPort + "/detect/v1.0/sharedDatabaseandServiceIntimacy" ,
-//                HttpMethod.POST,
-//                requestEntity,
-//                SharedDatabaseContext.class);
 
         SharedDatabaseContext sharedDatabaseContext = sharedDatabaseAndServiceIntimacyService.getsharedDatabaseandServiceIntimacy(projectPath);
         Map<String, ArrayList<String>> spMap = sharedDatabaseContext.getSharedDatabaseMap();
@@ -407,7 +395,6 @@ public class RAnalyser {
             for (String filePath: filePathToMicroserviceName.keySet()) {
                 List<String> javaFiles = FileFactory.getJavaFiles(filePath);
                 for (String javaFile: javaFiles) {
-                    // TODO 判断是否含有硬编码交互 JavaParserUtils.restTemplateUrlReplacer(javaFile, microserviceName, urls);
                     if (!result.containsKey(microserviceName)) {
                         result.put(microserviceName, new LinkedList<>());
                     }

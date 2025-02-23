@@ -29,3 +29,46 @@ harbor:
   project: testreposity
 detector:
   ipandPort: 127.0.0.1:8099
+refactor:
+  configuration:
+    templates:
+      eureka-client: templates/eureka_client.yml
+      eureka-server: templates/eureka_server.yml
+      nacos-client: templates/nacos_client.yml
+      config-server: templates/config_server.yml
+      config-client: templates/config_client.yml
+      gateway: templates/gateway.yml
+  dependencies:
+    eureka-server:
+      groupId: org.springframework.cloud
+      artifactId: spring-cloud-starter-netflix-eureka-server
+    eureka-client:
+      groupId: org.springframework.cloud
+      artifactId: spring-cloud-starter-netflix-eureka-client
+    spring-cloud:
+      groupId: org.springframework.cloud
+      artifactId: spring-cloud-dependencies
+      version: 2021.0.1
+      type: pom
+      scope: import
+    spring-cloud-alibaba:
+      groupId: com.alibaba.cloud
+      artifactId: spring-cloud-alibaba-dependencies
+      version: 2021.0.1.0
+      type: pom
+      scope: import
+    nacos:
+      groupId: com.alibaba.cloud
+      artifactId: spring-cloud-starter-alibaba-nacos-discovery
+    config-server:
+      groupId: org.springframework.cloud
+      artifactId: spring-cloud-config-server
+    config-client:
+      groupId: org.springframework.cloud
+      artifactId: spring-cloud-starter-config
+    bootstrap:
+      groupId: org.springframework.cloud
+      artifactId: spring-cloud-starter-bootstrap
+    gateway:
+      groupId: org.springframework.cloud
+      artifactId: spring-cloud-starter-gateway
