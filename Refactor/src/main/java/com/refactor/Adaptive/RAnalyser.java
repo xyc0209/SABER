@@ -407,7 +407,6 @@ public class RAnalyser {
             for (String filePath: filePathToMicroserviceName.keySet()) {
                 List<String> javaFiles = FileFactory.getJavaFiles(filePath);
                 for (String javaFile: javaFiles) {
-                    // TODO 判断是否含有硬编码交互 JavaParserUtils.restTemplateUrlReplacer(javaFile, microserviceName, urls);
                     if (!result.containsKey(microserviceName)) {
                         result.put(microserviceName, new LinkedList<>());
                     }

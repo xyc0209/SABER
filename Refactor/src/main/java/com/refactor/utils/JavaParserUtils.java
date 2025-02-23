@@ -22,6 +22,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -299,10 +300,10 @@ public class JavaParserUtils {
             stringVariableValueReplacer(variableNameAndValues, microserviceName, urls);
             RestTemplateParameterContext restTemplateParameterContext = new RestTemplateParameterContext(microserviceName, urls, variableNameAndValues);
             new HttpRequestStringVisitor().visit(methodDeclaration, restTemplateParameterContext);
-            System.out.println(variableNameAndValues);
+            // System.out.println(variableNameAndValues);
         }
-        System.out.println(compilationUnit);
-//        Files.write(Paths.get(javaFile), compilationUnit.toString().getBytes());
+        // System.out.println(compilationUnit);
+        Files.write(Paths.get(javaFile), compilationUnit.toString().getBytes());
     }
 
     private static void getStringFieldDeclaration(List<FieldDeclaration> fieldDeclarations, Map<String, StringVariableContext> variableNameAndValue) {
