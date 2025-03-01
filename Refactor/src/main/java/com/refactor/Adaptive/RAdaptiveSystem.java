@@ -192,7 +192,7 @@ public class RAdaptiveSystem {
         return null;
     }
 
-    public Map<String, Map<String, String>> refactorNAG(String projectPath) throws Exception {
+    public Map<String, Object> refactorNAG(String projectPath) throws Exception {
         Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
         int detectedResult = this.analyser.detectedNAG(projectPath, filePathToMicroserviceName);
         System.out.println(detectedResult);
@@ -207,7 +207,7 @@ public class RAdaptiveSystem {
                 }
             }
             System.out.println(discovery);
-            // return this.planner.planNAG(projectPath, discovery);
+            return this.planner.planNAG(projectPath, discovery);
         }
         return null;
     }
@@ -225,8 +225,8 @@ public class RAdaptiveSystem {
             }
         }
         if (detectedResult.size() != filePathToMicroserviceName.size()) {
-            // return this.planner.planUS(projectPath, discovery);
-            System.out.println(detectedResult);
+            return this.planner.planUS(projectPath, discovery);
+            // System.out.println(detectedResult);
         }
         return null;
     }

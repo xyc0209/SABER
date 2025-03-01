@@ -11,8 +11,11 @@ import com.refactor.chain.utils.Node;
 import com.refactor.config.DependenciesConfig;
 import com.refactor.config.GatewayConfig;
 import com.refactor.context.SystemMavenInfo;
+import com.refactor.detail.ModificationRecorder;
+import com.refactor.detail.model.CodeModification;
 import com.refactor.dto.ISIInfo;
 import com.refactor.dto.SvcCallDetail;
+import com.refactor.enumeration.ModificationType;
 import com.refactor.enumeration.TemplateFile;
 import com.refactor.suggest.RefactorISISuggestion;
 import com.refactor.suggest.RefactorSPSuggestion;
@@ -609,9 +612,8 @@ public class RPlanner {
             if (eurekaServerPath.isEmpty()) { // 不存在 eureka-server
                 // 获取 Eureka 服务端模板
                 SpringBootProjectDownloaderUtils.downloadProject("eureka-server",
-                        "java", systemMavenInfo.getSpringBootVersion(), systemMavenInfo.getGroupId(),
-                        "eureka-server", systemMavenInfo.getGroupId() + "." + "eurekaserver",
-                        systemMavenInfo.getJavaVersion(), Collections.singletonList("web"), projectPath);
+                        systemMavenInfo.getGroupId(),
+                        "eureka-server", systemMavenInfo.getGroupId() + "." + "eurekaserver", Collections.singletonList("web"), projectPath);
                 MavenParserUtils.addModule(parentPomXml, "eureka-server");
                 String eurekaServerPomXml = new File(projectPath + "/eureka-server/pom.xml").getAbsolutePath();
                 eurekaServerPath = new File(projectPath + "/eureka-server").getAbsolutePath();
@@ -663,22 +665,31 @@ public class RPlanner {
         return serviceModifiedDetails;
     }
 
-    public Map<String, Map<String, String>> planNAG(String projectPath, String discovery) throws Exception {
-        Map<String, Map<String, String>> serviceModifiedDetails = new HashMap<>();
+    public Map<String, Object> planNAG(String projectPath, String discovery) throws Exception {
+        ModificationRecorder recorder = new ModificationRecorder();
+        Map<String, Object> modificationInfo = new HashMap<>();
         // 获取系统 pom 信息
         SystemMavenInfo systemMavenInfo = MavenParserUtils.getSystemMavenInfo(projectPath);
-        Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
-        SpringBootProjectDownloaderUtils.downloadProject("gateway", "java", systemMavenInfo.getSpringBootVersion(),
+        // 获取模板文件
+        SpringBootProjectDownloaderUtils.downloadProject("gateway",
                 systemMavenInfo.getGroupId(), "gateway", systemMavenInfo.getGroupId() + "." + "gateway",
-                systemMavenInfo.getJavaVersion(), Collections.emptyList(), projectPath);
-        String parentPomXml = new File(projectPath + "/pom.xml").getAbsolutePath();
-        MavenParserUtils.addModule(parentPomXml, "gateway");
-        String gatewayPomXml = new File(projectPath + "/gateway/pom.xml").getAbsolutePath();
+                Collections.emptyList(), projectPath);
+        recorder.addRecord("gateway",
+                new CodeModification(projectPath + File.separator + "gateway" + File.separator + "pom.xml",
+                        ModificationType.MODULE_ADD, null, "gateway", "添加网关模块"));
+        Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
+        // 模块添加
+        MavenParserUtils.addModule(projectPath, "gateway");
+        // 新模块的 pom 文件路径
+        String gatewayPomXml = projectPath + File.separator + "gateway" + File.separator + "pom.xml";
+        // 设置父 pom 信息
         MavenParserUtils.setParent(gatewayPomXml, systemMavenInfo.getGroupId(), systemMavenInfo.getArtifactId(), systemMavenInfo.getVersion());
+        // 将 properties 文件类型改为 yaml 类型
         String gatewayYamlPath = new File(projectPath + "/gateway/src/main/resources/application.properties").getAbsolutePath();
         FileFactory.deleteFile(gatewayYamlPath);
         gatewayYamlPath = FileFactory.createFile(new File(projectPath + "/gateway/src/main/resources/application.yaml").getAbsolutePath());
         MavenParserUtils.addMavenDependencies(gatewayPomXml, dependenciesConfig.getGateway());
+        // 更改配置文件信息
         FileFactory.updateApplicationYamlOrProperties(gatewayYamlPath, TemplateFile.GATEWAY);
         if ("eureka".equals(discovery)) {
             MavenParserUtils.addMavenDependencies(gatewayPomXml, dependenciesConfig.getEurekaClient());
@@ -706,23 +717,28 @@ public class RPlanner {
         }
         Map<String, Object> springCloudGateway = YamlAndPropertiesParserUtils.getSpringCloudGateway(microserviceNameToPreUrls);
         YamlAndPropertiesParserUtils.updateApplicationYaml(gatewayYamlPath, YamlAndPropertiesParserUtils.removeCustomClasses(springCloudGateway, GatewayConfig.class));
-        filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
-        for (String filePath : filePathToMicroserviceName.keySet()) {
-            serviceModifiedDetails.put(filePathToMicroserviceName.get(filePath), FileFactory.getServiceDetails(filePath));
-        }
-        return serviceModifiedDetails;
+        Map<String, Map<String, String>> serviceModifiedDetails = new HashMap<>();
+        serviceModifiedDetails.put("gateway", FileFactory.getServiceDetails(projectPath + File.separator + "gateway"));
+        modificationInfo.put("serviceModifiedDetails", serviceModifiedDetails);
+        modificationInfo.put("modificationRecords", recorder.formatRecords());
+        return modificationInfo;
     }
 
-    public Map<String, Map<String, String>> planUS(String projectPath, String discovery) throws IOException, XmlPullParserException {
+    public Map<String, Object> planUS(String projectPath, String discovery) throws IOException, XmlPullParserException {
+        Map<String, Object> modificationInfo = new HashMap<>();
+        ModificationRecorder recorder = new ModificationRecorder();
         Map<String, Map<String, String>> serviceModifiedDetails = new HashMap<>();
         SystemMavenInfo systemMavenInfo = MavenParserUtils.getSystemMavenInfo(projectPath);
-        Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
         // 增加模块
-        SpringBootProjectDownloaderUtils.downloadProject("config-server", "java", systemMavenInfo.getSpringBootVersion(),
+        SpringBootProjectDownloaderUtils.downloadProject("config-server",
                 systemMavenInfo.getGroupId(), "config-server", systemMavenInfo.getGroupId() + "." + "configserver",
-                systemMavenInfo.getJavaVersion(), Collections.singletonList("web"), projectPath);
+                Collections.singletonList("web"), projectPath);
         String parentPomXml = new File(projectPath + "/pom.xml").getAbsolutePath();
         MavenParserUtils.addModule(parentPomXml, "config-server");
+        recorder.addRecord("config-server",
+                new CodeModification(projectPath + File.separator + "config-server" + File.separator + "pom.xml",
+                        ModificationType.MODULE_ADD, null, "config-server", "添加配置中心模块"));
+        Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
         // 创建本地配置文件文件夹
         String shared = FileFactory.createDirectory(projectPath + "/config-server/src/main/resources/shared");
         // 配置父项目
@@ -742,6 +758,10 @@ public class RPlanner {
             if (!pomXmlPath.equals(parentPomXml) && !pomXmlPath.equals(configServerPomXml)) {
                 MavenParserUtils.addMavenDependencies(pomXmlPath, dependenciesConfig.getConfigClient());
                 MavenParserUtils.addMavenDependencies(pomXmlPath, dependenciesConfig.getBootstrap());
+                recorder.addRecord(pomXmlPath,
+                        new CodeModification(pomXmlPath, ModificationType.DEPENDENCY_ADD, null, "org.springframework.cloud:spring-cloud-config-client", "添加配置中心客户端依赖"));
+                recorder.addRecord(pomXmlPath,
+                        new CodeModification(pomXmlPath, ModificationType.DEPENDENCY_ADD, null, "org.springframework.cloud:spring-cloud-starter-bootstrap", "添加配置中心客户端依赖"));
             }
         }
         if ("eureka".equals(discovery)) {
@@ -764,12 +784,15 @@ public class RPlanner {
                     YamlAndPropertiesParserUtils.updateApplicationYaml(sharedYamlPath, configurations);
                 }
             }
+            recorder.addRecord(filePathToMicroserviceName.get(filePath),
+                    new CodeModification(bootstrapYamlPath, ModificationType.FILE_CREATE, null, "bootstrap.yml", "创建 bootstrap.yml 文件"));
         }
-        filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
         for (String filePath : filePathToMicroserviceName.keySet()) {
-            serviceModifiedDetails.put(filePathToMicroserviceName.get(filePath), FileFactory.getServiceDetails(filePath));
+            serviceModifiedDetails.put(filePathToMicroserviceName.get(filePath), FileFactory.getServiceDetails(filePath))
         }
-        return serviceModifiedDetails;
+        modificationInfo.put("serviceModifiedDetails", serviceModifiedDetails);
+        modificationInfo.put("modificationRecords", recorder.formatRecords());
+        return modificationInfo;
     }
 
     public Map<String, Map<String, String>> planEBSI(String projectPath) throws IOException {

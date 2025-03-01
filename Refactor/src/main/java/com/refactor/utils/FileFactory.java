@@ -1644,5 +1644,10 @@ public static List<String> getJavaFiles(String servicesDirectory) throws IOExcep
         }
         return null;
     }
+
+    public static boolean isFileExists(String filePath) {
+        Path path = Paths.get(filePath);
+        return Files.exists(path) && Files.isRegularFile(path);
+    }
 }
 

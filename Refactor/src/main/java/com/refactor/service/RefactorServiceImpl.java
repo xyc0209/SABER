@@ -153,8 +153,10 @@ public class RefactorServiceImpl {
         return re.getBody();
     }
     public String resolveNAG(String projectPath, HttpHeaders httpHeaders) throws Exception {
-        Map<String, Map<String, String>> serviceDetails = rAdaptiveSystem.refactorNAG(projectPath);
-        HttpEntity requestEntity = new HttpEntity(serviceDetails, httpHeaders);
+        Map<String, Object> modificationInfo = rAdaptiveSystem.refactorNAG(projectPath);
+        if (modificationInfo == null)
+            return "No code refactoring to eliminate NAG";
+        HttpEntity requestEntity = new HttpEntity(modificationInfo.getOrDefault("serviceModifiedDetails", null), httpHeaders);
         ResponseEntity<String> re = restTemplate.exchange(
                 "http://" + clusterIPandPort + "api/v1/clusteragent/deployNAG",
                 HttpMethod.POST,
