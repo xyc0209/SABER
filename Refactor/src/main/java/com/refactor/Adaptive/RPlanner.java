@@ -788,7 +788,7 @@ public class RPlanner {
                     new CodeModification(bootstrapYamlPath, ModificationType.FILE_CREATE, null, "bootstrap.yml", "创建 bootstrap.yml 文件"));
         }
         for (String filePath : filePathToMicroserviceName.keySet()) {
-            serviceModifiedDetails.put(filePathToMicroserviceName.get(filePath), FileFactory.getServiceDetails(filePath))
+            serviceModifiedDetails.put(filePathToMicroserviceName.get(filePath), FileFactory.getServiceDetails(filePath));
         }
         modificationInfo.put("serviceModifiedDetails", serviceModifiedDetails);
         modificationInfo.put("modificationRecords", recorder.formatRecords());

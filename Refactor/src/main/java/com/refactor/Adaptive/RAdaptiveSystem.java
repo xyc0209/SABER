@@ -212,7 +212,7 @@ public class RAdaptiveSystem {
         return null;
     }
 
-    public Map<String, Map<String, String>> refactorUS(String projectPath) throws XmlPullParserException, IOException {
+    public Map<String, Object> refactorUS(String projectPath) throws XmlPullParserException, IOException {
         Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
         Map<String, String> detectedResult = this.analyser.detectedUS(projectPath, filePathToMicroserviceName);
         Map<String, String> nsdp = this.analyser.detectNSDP(projectPath, filePathToMicroserviceName);
