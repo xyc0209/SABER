@@ -58,24 +58,11 @@ public class RAdaptiveSystem {
             Map<String, Map<String, String>> serviceModifiedDetails = this.planner.planGod(callchain.get(servicePath), servicePath,  (int) Math.floor(averageSize));
             if (serviceModifiedDetails != null)
                 svcDetails.putAll(serviceModifiedDetails);
-//            for (Map.Entry<String, Map<String, String>> svcDetail : svcDetails.entrySet())
-//                executor.buildAndPushToHarbor(svcDetail);
+            for (Map.Entry<String, Map<String, String>> svcDetail : svcDetails.entrySet())
+                executor.buildAndPushToHarbor(svcDetail);
         }
         return svcDetails;
 
-//        List<String> megaPaths = this.analyser.detectGod();
-//        if(!megaPaths.isEmpty()){
-//            Map<String, Map<String, String>> svcDetails = new HashMap<>();
-//            for (String megaPath: megaPaths){
-//                List<Node>  callchain = this.monitor.getCommunities(megaPath);
-//                System.out.println("callchain"+ callchain.toString());
-//                svcDetails.putAll(this.planner.planGod(callchain, megaPath));
-//            }
-//            for (Map.Entry<String, Map<String, String>> svcDetail: svcDetails.entrySet())
-//                executor.buildAndPushToHarbor(svcDetail);
-//            return svcDetails;
-//        }
-//        else return null;
 
     }
 
@@ -89,12 +76,11 @@ public class RAdaptiveSystem {
         if(!resultPaths.get("nano").isEmpty()){
             Map<String, Map<String, String>> svcDetails = this.planner.planNano(projectPath, svcTransResList, resultPaths.get("normal"), resultPaths.get("nano"), svcEntityMap, namePathMap);
 //
-//            for (Map.Entry<String, Map<String, String>> svcDetail: svcDetails.entrySet())
-//                executor.buildAndPushToHarbor(svcDetail);
-//            return svcDetails;
+            for (Map.Entry<String, Map<String, String>> svcDetail: svcDetails.entrySet())
+                executor.buildAndPushToHarbor(svcDetail);
+            return svcDetails;
         }
-//        else return null;
-        return null;
+        else return null;
 
     }
 
@@ -142,18 +128,18 @@ public class RAdaptiveSystem {
         List<String> servicePaths = FileFactory.getServicePaths(projectPath);
         Map<String, Map<String, UrlItem>> navDetails = this.analyser.detectNAV(servicePaths, namePathMap);
         System.out.println("navDetails" +navDetails.toString());
-//        if (!navDetails.isEmpty()) {
-//            Map<String, Map<String, String>> svcDetails = this.planner.planNAV(navDetails, namePathMap);
-//            if (svcDetails != null) {
-//                for (Map.Entry<String, Map<String, String>> svcDetail : svcDetails.entrySet())
-//                    executor.buildAndPushToHarbor(svcDetail);
-//                return svcDetails;
-//            } else
-//                return null;
-//        }
-//        else return null;
-        return null;
+        if (!navDetails.isEmpty()) {
+            Map<String, Map<String, String>> svcDetails = this.planner.planNAV(navDetails, namePathMap);
+            if (svcDetails != null) {
+                for (Map.Entry<String, Map<String, String>> svcDetail : svcDetails.entrySet())
+                    executor.buildAndPushToHarbor(svcDetail);
+                return svcDetails;
+            } else
+                return null;
+        }
+        else return null;
     }
+
     // REFACTOR Sharing Persistence
     public Map<String, Map<String, String>>  refactorSP(String projectPath) throws IOException {
         List<String> servicePaths = FileFactory.getServicePaths(projectPath);
@@ -208,7 +194,7 @@ public class RAdaptiveSystem {
                 }
             }
             System.out.println(discovery);
-            // return this.planner.planNAG(projectPath, discovery);
+            return this.planner.planNAG(projectPath, discovery);
         }
         return null;
     }
@@ -226,8 +212,7 @@ public class RAdaptiveSystem {
             }
         }
         if (detectedResult.size() != filePathToMicroserviceName.size()) {
-            // return this.planner.planUS(projectPath, discovery);
-            System.out.println(detectedResult);
+             return this.planner.planUS(projectPath, discovery);
         }
         return null;
     }
