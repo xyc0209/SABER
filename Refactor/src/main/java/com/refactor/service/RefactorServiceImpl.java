@@ -185,8 +185,10 @@ public class RefactorServiceImpl {
      * Unnecessary Settings
      */
     public String resolveUS(String projectPath, HttpHeaders httpHeaders) throws XmlPullParserException, IOException {
-        Map<String, Map<String, String>> serviceDetails = rAdaptiveSystem.refactorUS(projectPath);
-        HttpEntity requestEntity = new HttpEntity(serviceDetails, httpHeaders);
+        Map<String, Object> modificationInfo = rAdaptiveSystem.refactorUS(projectPath);
+        if (modificationInfo == null)
+            return "No code refactoring to eliminate US";
+        HttpEntity requestEntity = new HttpEntity(modificationInfo.getOrDefault("serviceModifiedDetails", null), httpHeaders);
         ResponseEntity<String> re = restTemplate.exchange(
                 "http://" + clusterIPandPort + "api/v1/clusteragent/deployUS",
                 HttpMethod.POST,
