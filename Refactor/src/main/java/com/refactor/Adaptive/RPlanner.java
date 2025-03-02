@@ -583,7 +583,9 @@ public class RPlanner {
         return serviceModifiedDetails;
     }
 
-    public Map<String, Map<String, String>> planNSDP(String projectPath, Map<String, String> serviceDetails) throws XmlPullParserException, IOException {
+    public Map<String, Object> planNSDP(String projectPath, Map<String, String> serviceDetails) throws XmlPullParserException, IOException {
+        ModificationRecorder recorder = new ModificationRecorder();
+        Map<String, Object> modificationInfo = new HashMap<>();
         // 标识服务发现组件类型
         String discovery = "nacos";
         // 记录是否含有 eureka-server
@@ -600,11 +602,23 @@ public class RPlanner {
             }
         }
         Map<String, Map<String, String>> serviceModifiedDetails = new HashMap<>();
-        // 系统 pom 文件路径
-        String parentPomXml = new File(projectPath + "/pom.xml").getAbsolutePath();
+        Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
         // 检测是否添加 Spring Cloud 依赖
-        if (!MavenParserUtils.hasSpringCloud(parentPomXml)) {
-            MavenParserUtils.addMavenDependencies(parentPomXml, dependenciesConfig.getSpringCloud());
+        int hasSpringCloud = MavenParserUtils.hasSpringCloud(projectPath);
+        if (hasSpringCloud == 1) {
+            MavenParserUtils.addMavenDependencies(projectPath + File.separator + "pom.xml", dependenciesConfig.getSpringCloud());
+            recorder.addRecord(projectPath,
+                    new CodeModification(projectPath + File.separator + "pom.xml", ModificationType.DEPENDENCY_ADD,
+                            "", "org.springframework.cloud:spring-cloud-dependencies", "添加 Spring Cloud 依赖"));
+        } else if (hasSpringCloud == 2) {
+            for (String filePath: serviceDetails.keySet()) {
+                if (MavenParserUtils.hasSpringCloud(filePath) == 1) {
+                    MavenParserUtils.addMavenDependencies(filePath + File.separator + "pom.xml", dependenciesConfig.getSpringCloud());
+                    recorder.addRecord(filePathToMicroserviceName.get(filePath),
+                            new CodeModification(filePath + File.separator + "pom.xml", ModificationType.DEPENDENCY_ADD,
+                                    "", "org.springframework.cloud:spring-cloud-dependencies", "添加 Spring Cloud 依赖"));
+                }
+            }
         }
         // 获取系统 pom 信息
         SystemMavenInfo systemMavenInfo = MavenParserUtils.getSystemMavenInfo(projectPath);
@@ -614,7 +628,10 @@ public class RPlanner {
                 SpringBootProjectDownloaderUtils.downloadProject("eureka-server",
                         systemMavenInfo.getGroupId(),
                         "eureka-server", systemMavenInfo.getGroupId() + "." + "eurekaserver", Collections.singletonList("web"), projectPath);
-                MavenParserUtils.addModule(parentPomXml, "eureka-server");
+                MavenParserUtils.addModule(projectPath, "eureka-server");
+                recorder.addRecord(projectPath,
+                        new CodeModification(projectPath, ModificationType.MODULE_ADD,
+                                "", "eureka-server", "添加 Eureka 服务端模块"));
                 String eurekaServerPomXml = new File(projectPath + "/eureka-server/pom.xml").getAbsolutePath();
                 eurekaServerPath = new File(projectPath + "/eureka-server").getAbsolutePath();
                 // 添加服务端依赖
@@ -633,36 +650,60 @@ public class RPlanner {
             Map<String, Object> eurekaClientConfigurations = YamlAndPropertiesParserUtils.transStringToMap("eureka.client.service-url.defaultZone", eurekaServerConfigurations.getOrDefault("eureka.client.service-url.defaultZone", 8888));
             String eurekaServerPomXml = new File(eurekaServerPath + "/pom.xml").getAbsolutePath();
             // 为其它模块添加 Eureka 客户端依赖和配置
+            String parentPomXml = projectPath + File.separator + "pom.xml";
             for (String pomXmlPath: FileFactory.getPomXmlPaths(projectPath)) {
+                String microserviceName = filePathToMicroserviceName.get(new File(pomXmlPath).getParent());
                 if (!pomXmlPath.equals(parentPomXml) && !pomXmlPath.equals(eurekaServerPomXml)) { // 非父 pom 文件并且非 eureka-server pom 文件
                     MavenParserUtils.addMavenDependencies(pomXmlPath, dependenciesConfig.getEurekaClient());
+                    recorder.addRecord(microserviceName,
+                            new CodeModification(pomXmlPath, ModificationType.DEPENDENCY_ADD,
+                                    "", "org.springframework.cloud:spring-cloud-starter-netflix-eureka-client", "添加 Eureka 客户端依赖"));
                 }
             }
             for (String applicationYamlOrPropertiesPath: FileFactory.getApplicationYamlOrPropertiesPaths(projectPath)) {
                 if (!applicationYamlOrPropertiesPath.contains(eurekaServerPath)) { // 非 eureka-server 配置文件
                     FileFactory.updateApplicationYamlOrProperties(applicationYamlOrPropertiesPath, TemplateFile.EUREKA_CLIENT);
                     FileFactory.updateApplicationYamlOrProperties(applicationYamlOrPropertiesPath, eurekaClientConfigurations);
+                    recorder.addRecord(FileFactory.getMicroserviceName(applicationYamlOrPropertiesPath),
+                            new CodeModification(applicationYamlOrPropertiesPath, ModificationType.CONFIG_UPDATE,
+                                    "", TemplateFile.EUREKA_CLIENT.toString(), "添加 Eureka 客户端配置"));
                 }
             }
         } else if ("nacos".equals(discovery)) {
             // 父 pom 添加 Spring Cloud Alibaba 依赖
-            MavenParserUtils.addMavenDependencies(parentPomXml, dependenciesConfig.getSpringCloudAlibaba());
-            // 其余模块添加 nacos 依赖
-            for (String pomXmlPath: FileFactory.getPomXmlPaths(projectPath)) {
-                if (!pomXmlPath.equals(parentPomXml)) {
-                    MavenParserUtils.addMavenDependencies(pomXmlPath, dependenciesConfig.getNacos());
+            if (hasSpringCloud != 2) {
+                MavenParserUtils.addMavenDependencies(projectPath + File.separator + "pom.xml", dependenciesConfig.getSpringCloudAlibaba());
+                recorder.addRecord(projectPath,
+                        new CodeModification(projectPath, ModificationType.DEPENDENCY_ADD, "", "org.springframework.cloud:spring-cloud-alibaba-dependencies", "添加 Spring Cloud Alibaba 依赖"));
+            } else {
+                // 其余模块添加 nacos 依赖
+                for (String pomXmlPath: FileFactory.getPomXmlPaths(projectPath)) {
+                    if (!pomXmlPath.equals(projectPath + File.separator + "pom.xml")) {
+                        String microserviceName = filePathToMicroserviceName.get(new File(pomXmlPath).getParent());
+                        MavenParserUtils.addMavenDependencies(pomXmlPath, dependenciesConfig.getSpringCloudAlibaba());
+                        MavenParserUtils.addMavenDependencies(pomXmlPath, dependenciesConfig.getNacos());
+                        recorder.addRecord(microserviceName,
+                                new CodeModification(pomXmlPath, ModificationType.DEPENDENCY_ADD,
+                                        "", "org.springframework.cloud:spring-cloud-alibaba-dependencies", "添加 Spring Cloud Alibaba 依赖"));
+                        recorder.addRecord(microserviceName,
+                                new CodeModification(pomXmlPath, ModificationType.DEPENDENCY_ADD,
+                                        "", "com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-discovery", "添加 Nacos 依赖"));
+                    }
                 }
             }
             // 其余模块更新 nacos 配置
             for (String applicationYamlOrPropertiesPath: FileFactory.getApplicationYamlOrPropertiesPaths(projectPath)) {
                 FileFactory.updateApplicationYamlOrProperties(applicationYamlOrPropertiesPath, TemplateFile.NACOS_CLIENT);
+                recorder.addRecord(FileFactory.getMicroserviceName(applicationYamlOrPropertiesPath),
+                        new CodeModification(applicationYamlOrPropertiesPath, ModificationType.CONFIG_UPDATE, "", TemplateFile.NACOS_CLIENT.toString(), "添加 Nacos 配置"));
             }
         }
-        Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
         for (String filePath : filePathToMicroserviceName.keySet()) {
             serviceModifiedDetails.put(filePathToMicroserviceName.get(filePath), FileFactory.getServiceDetails(filePath));
         }
-        return serviceModifiedDetails;
+        modificationInfo.put("records", recorder.getRecords());
+        modificationInfo.put("serviceModifiedDetails", serviceModifiedDetails);
+        return modificationInfo;
     }
 
     public Map<String, Object> planNAG(String projectPath, String discovery) throws Exception {
@@ -674,12 +715,11 @@ public class RPlanner {
         SpringBootProjectDownloaderUtils.downloadProject("gateway",
                 systemMavenInfo.getGroupId(), "gateway", systemMavenInfo.getGroupId() + "." + "gateway",
                 Collections.emptyList(), projectPath);
-        recorder.addRecord("gateway",
-                new CodeModification(projectPath + File.separator + "gateway" + File.separator + "pom.xml",
-                        ModificationType.MODULE_ADD, null, "gateway", "添加网关模块"));
         Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
         // 模块添加
         MavenParserUtils.addModule(projectPath, "gateway");
+        recorder.addRecord(projectPath,
+                new CodeModification(projectPath, ModificationType.MODULE_ADD, null, "gateway", "添加网关模块"));
         // 新模块的 pom 文件路径
         String gatewayPomXml = projectPath + File.separator + "gateway" + File.separator + "pom.xml";
         // 设置父 pom 信息
@@ -733,10 +773,10 @@ public class RPlanner {
         SpringBootProjectDownloaderUtils.downloadProject("config-server",
                 systemMavenInfo.getGroupId(), "config-server", systemMavenInfo.getGroupId() + "." + "configserver",
                 Collections.singletonList("web"), projectPath);
-        String parentPomXml = new File(projectPath + "/pom.xml").getAbsolutePath();
-        MavenParserUtils.addModule(parentPomXml, "config-server");
+        String parentPomXml = projectPath + File.separator + "pom.xml";
+        MavenParserUtils.addModule(projectPath, "config-server");
         recorder.addRecord("config-server",
-                new CodeModification(projectPath + File.separator + "config-server" + File.separator + "pom.xml",
+                new CodeModification(projectPath,
                         ModificationType.MODULE_ADD, null, "config-server", "添加配置中心模块"));
         Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
         // 创建本地配置文件文件夹
@@ -756,11 +796,12 @@ public class RPlanner {
         List<String> pomXmlPaths = FileFactory.getPomXmlPaths(projectPath);
         for (String pomXmlPath : pomXmlPaths) {
             if (!pomXmlPath.equals(parentPomXml) && !pomXmlPath.equals(configServerPomXml)) {
+                String microserviceName = filePathToMicroserviceName.get(new File(pomXmlPath).getParent());
                 MavenParserUtils.addMavenDependencies(pomXmlPath, dependenciesConfig.getConfigClient());
                 MavenParserUtils.addMavenDependencies(pomXmlPath, dependenciesConfig.getBootstrap());
-                recorder.addRecord(pomXmlPath,
+                recorder.addRecord(microserviceName,
                         new CodeModification(pomXmlPath, ModificationType.DEPENDENCY_ADD, null, "org.springframework.cloud:spring-cloud-config-client", "添加配置中心客户端依赖"));
-                recorder.addRecord(pomXmlPath,
+                recorder.addRecord(microserviceName,
                         new CodeModification(pomXmlPath, ModificationType.DEPENDENCY_ADD, null, "org.springframework.cloud:spring-cloud-starter-bootstrap", "添加配置中心客户端依赖"));
             }
         }

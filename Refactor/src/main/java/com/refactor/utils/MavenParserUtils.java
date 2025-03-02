@@ -46,7 +46,6 @@ public class MavenParserUtils {
 
     /**
      * 添加一个依赖
-     * @param mavenPath maven 文件路径
      * @param dependency 新依赖
      */
     public static void addMavenDependencies(String mavenPath, Dependency dependency) throws IOException, XmlPullParserException {
@@ -152,18 +151,22 @@ public class MavenParserUtils {
         }
     }
 
-    public static boolean hasSpringCloud(String mavenPath) throws XmlPullParserException, IOException {
-        try (FileReader fr = new FileReader(mavenPath)) {
-            Model model = reader.read(fr);
-            List<Dependency> dependencies = model.getDependencies();
-            for (Dependency dependency : dependencies) {
-                if ("org.springframework.cloud".equals(dependency.getGroupId())
-                        && "spring-cloud-dependencies".equals(dependency.getArtifactId())) {
-                    return true;
+    public static int hasSpringCloud(String directory) throws XmlPullParserException, IOException {
+        String parentPomXml = directory + File.separator + "pom.xml";
+        if (FileFactory.isFileExists(parentPomXml)) { // 存在父项目 pom 文件
+            try (FileReader fr = new FileReader(parentPomXml)) {
+                Model model = reader.read(fr);
+                List<Dependency> dependencies = model.getDependencies();
+                for (Dependency dependency : dependencies) {
+                    if ("org.springframework.cloud".equals(dependency.getGroupId())
+                            && "spring-cloud-dependencies".equals(dependency.getArtifactId())) {
+                        return 0; // 有 spring cloud 且有父 pom
+                    }
                 }
+                return 1; // 无 spring cloud 且有父 pom
             }
-            return false;
         }
+        return 2; // 无父 pom
     }
 
     public static SystemMavenInfo getSystemMavenInfo(String systemPath) throws XmlPullParserException, IOException {
