@@ -170,8 +170,8 @@ public class RefactorServiceImpl {
      * No Service Discovery Pattern
      */
     public String resolveNSDP(String projectPath, HttpHeaders httpHeaders) throws IOException, XmlPullParserException {
-        Map<String, Map<String, String>> serviceDetails = rAdaptiveSystem.refactorNSDP(projectPath);
-        HttpEntity requestEntity = new HttpEntity(serviceDetails, httpHeaders);
+        Map<String, Object> modificationInfo = rAdaptiveSystem.refactorNSDP(projectPath);
+        HttpEntity requestEntity = new HttpEntity(modificationInfo.getOrDefault("serviceModifiedDetails", null), httpHeaders);
         ResponseEntity<String> re = restTemplate.exchange(
                 "http://" + clusterIPandPort + "api/v1/clusteragent/deployNSDP",
                 HttpMethod.POST,

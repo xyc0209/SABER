@@ -176,7 +176,7 @@ public class RAdaptiveSystem {
 
     }
 
-    public Map<String, Map<String, String>> refactorNSDP(String projectPath) throws IOException, XmlPullParserException {
+    public Map<String, Object> refactorNSDP(String projectPath) throws IOException, XmlPullParserException {
         Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
         Map<String, String> detectedResult = this.analyser.detectNSDP(projectPath, filePathToMicroserviceName);
         boolean hasDiscovery = true;
