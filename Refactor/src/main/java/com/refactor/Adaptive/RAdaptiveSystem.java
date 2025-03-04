@@ -231,7 +231,7 @@ public class RAdaptiveSystem {
         return null;
     }
 
-    public Map<String, Map<String, String>> refactorEBSI(String projectPath) throws IOException {
+    public Map<String, Object> refactorEBSI(String projectPath) throws IOException {
         return this.planner.planEBSI(projectPath);
     }
 

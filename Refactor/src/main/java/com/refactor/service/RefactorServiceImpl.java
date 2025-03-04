@@ -202,8 +202,8 @@ public class RefactorServiceImpl {
      * Endpoint Based Service Interaction
      */
     public String resolveEBSI(String projectPath, HttpHeaders httpHeaders) throws IOException {
-        Map<String, Map<String, String>> serviceDetails = rAdaptiveSystem.refactorEBSI(projectPath);
-        HttpEntity requestEntity = new HttpEntity(serviceDetails, httpHeaders);
+        Map<String, Object> modificationInfo = rAdaptiveSystem.refactorEBSI(projectPath);
+        HttpEntity requestEntity = new HttpEntity(modificationInfo.getOrDefault("serviceModifiedDetails", null), httpHeaders);
         ResponseEntity<String> re = restTemplate.exchange(
                 "http://" + clusterIPandPort + "api/v1/clusteragent/deployEBSI",
                 HttpMethod.POST,

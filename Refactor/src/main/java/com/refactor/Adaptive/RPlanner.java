@@ -701,7 +701,7 @@ public class RPlanner {
         for (String filePath : filePathToMicroserviceName.keySet()) {
             serviceModifiedDetails.put(filePathToMicroserviceName.get(filePath), FileFactory.getServiceDetails(filePath));
         }
-        modificationInfo.put("records", recorder.getRecords());
+        modificationInfo.put("modificationRecords", recorder.formatRecords());
         modificationInfo.put("serviceModifiedDetails", serviceModifiedDetails);
         return modificationInfo;
     }
@@ -836,7 +836,9 @@ public class RPlanner {
         return modificationInfo;
     }
 
-    public Map<String, Map<String, String>> planEBSI(String projectPath) throws IOException {
+    public Map<String, Object> planEBSI(String projectPath) throws IOException {
+        Map<String, Object> modificationInfo = new LinkedHashMap<>();
+        ModificationRecorder recorder = new ModificationRecorder();
         Map<String, Map<String, String>> serviceModifiedDetails = new HashMap<>();
         Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
         Map<String, String> filePathToMicroservicePort = FileFactory.getFilePathToMicroservicePort(projectPath);
@@ -851,18 +853,20 @@ public class RPlanner {
                 }
             }
             filePathToUrls.put(filePath, urls);
-            System.out.println(urls);
+            // System.out.println(urls);
         }
         for (String filePath: filePathToUrls.keySet()) {
             String microserviceName = filePathToMicroserviceName.get(filePath);
             List<String> javaFiles = FileFactory.getJavaFiles(filePath);
             for (String javaFile: javaFiles) {
-                JavaParserUtils.restTemplateUrlReplacer(javaFile, microserviceName, filePathToUrls.get(filePath));
+                JavaParserUtils.restTemplateUrlReplacer(javaFile, microserviceName, filePathToUrls.get(filePath), recorder);
             }
         }
         for (String filePath : filePathToMicroserviceName.keySet()) {
             serviceModifiedDetails.put(filePathToMicroserviceName.get(filePath), FileFactory.getServiceDetails(filePath));
         }
-        return serviceModifiedDetails;
+        modificationInfo.put("serviceModifiedDetails", serviceModifiedDetails);
+        modificationInfo.put("modificationRecords", recorder.formatRecords());
+        return modificationInfo;
     }
 }
