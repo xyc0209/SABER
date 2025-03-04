@@ -245,7 +245,7 @@ public class RPlanner {
         Map<String, Map<String, String>> serviceModifiedDetails = new HashMap<>();
         this.serviceCallDetails = parseResultUtils.ESBUsageAnalysis(projectPath);
         List<String> serviceClassFiles = FileFinder.findServiceClasses(projectPath);
-//        TraceUtils.svcTransResList = svcTransResList;
+        TraceUtils.svcTransResList = svcTransResList;
         //初始化 normal
         List<ServiceDetail> normalServices = new ArrayList<>();
         Map<String, Double> cohesionMap = null;
@@ -259,8 +259,8 @@ public class RPlanner {
                 maxCoupling = coupling;
             //获取服务调用次数，接收类型为List<SvcTransRes>, 1.遍历获得总次数allCount，2.分析nano服务合并到正常服务的次数targetCount(每个调用链中正常服务调用nano服务的情况), 3. allCount - targetCount为合并后的总次数
 
-//            ServiceDetail service1 = new ServiceDetail(svcName, normalServicePath, TraceUtils.getServiceCallCounts(svcName), coupling, (double)cohesionMap.get("cohesion"), cohesionMap);
-            ServiceDetail service1 = new ServiceDetail(svcName, normalServicePath, 1, coupling, (double)cohesionMap.get("cohesion"), cohesionMap);
+            ServiceDetail service1 = new ServiceDetail(svcName, normalServicePath, TraceUtils.getServiceCallCounts(svcName), coupling, (double)cohesionMap.get("cohesion"), cohesionMap);
+//            ServiceDetail service1 = new ServiceDetail(svcName, normalServicePath, 1, coupling, (double)cohesionMap.get("cohesion"), cohesionMap);
             normalServices.add(service1);
         }
         //初始化 nano
@@ -272,15 +272,9 @@ public class RPlanner {
             double coupling = svcCallDetail.getCalledService().size() + svcCallDetail.getCallService().size();
             if (coupling > maxCoupling)
                 maxCoupling = coupling;
-            String serviceName = null;
-            for (Map.Entry<String, String> entry : namePathMap.entrySet()) {
-                if (entry.getValue().equals(nanoServicePath)) {
-                    serviceName = entry.getKey();
-                    break;
-                }
-            }
-//            ServiceDetail service1 = new NanoService("Service A", nanoServicePath, TraceUtils.getServiceCallCounts(svcName), coupling, (double)cohesionMap.get("cohesion"), cohesionMap);
-            ServiceDetail service1 = new NanoService(serviceName, nanoServicePath, 1, coupling, (double)cohesionMap.get("cohesion"), cohesionMap);
+
+//            ServiceDetail service1 = new NanoService(svcName, nanoServicePath, 1, coupling, (double)cohesionMap.get("cohesion"), cohesionMap);
+            ServiceDetail service1 = new NanoService(svcName, nanoServicePath, TraceUtils.getServiceCallCounts(svcName), coupling, (double)cohesionMap.get("cohesion"), cohesionMap);
             nanoServices.add(service1);
         }
 
@@ -297,44 +291,44 @@ public class RPlanner {
         System.out.println("最佳分配: " + ServiceMerger.bestAllocation + " -> 最佳适应度: " + ServiceMerger.bestFitness);
         System.out.println("merged service"+normalServices.get(ServiceMerger.bestAllocation.get(0)).getName());
         //文件合并，数据库内容合并
-//        for (int i=0; i < allocation.size(); i++){
-//            String nanoPath = nanoServicePaths.get(0);
-//            String normalPath = normalServicePaths.get(allocation.get(i));
-//            String nanoName = fileFactory.getServiceName(nanoPath);
-//            String normalName = fileFactory.getServiceName(normalPath);
-//            //将nanoPath路径下的内容合并到normalPath下，除了yaml文件和标有@SpringBootApplication注解的启动类文件外
-//            FileFactory.mergePaths(nanoPath, normalPath);
-//            //复制pom文件
-//            DependencyUtils.mergeDependencies(nanoPath, normalPath);
-//            //复制nanoPath路径下的application,yaml文件中指定的数据库中的内容到normalPath指定的数据库
-//            Map<String,String> nanoDatabaseDetails = databaseUtils.getDatabaseDetails(this.fileFactory,nanoPath);
-//            Map<String,String> normalDatabaseDetails = databaseUtils.getDatabaseDetails(this.fileFactory,normalPath);
-//            DatabaseUtils.copyDatabase(nanoDatabaseDetails, normalDatabaseDetails, svcEntityMap.get(nanoName));
-//
-//            FileFactory.setSVCNameAndDBName(normalPath, normalName +"_" + nanoName, null);
-//            //修改调用
-//
-//            ServiceReplaceUtils serviceReplaceUtils1 = new ServiceReplaceUtils(nanoName, normalName, null);
-//            for(String serviceClassFile: serviceClassFiles){
-//                if (serviceReplaceUtils1.serviceReplace(serviceClassFile)){
-//                    String addServicePath = FileFinder.trimPathBeforeSrc(serviceClassFile);
-//                    if (!serviceModifiedPaths.contains(addServicePath))
-//                        serviceModifiedDetails.put(addServicePath, ServiceReplaceUtils.getSVCModifiedDetails(FileFactory.getServiceDetails(addServicePath).get("serviceName"), FileFactory.getServiceDetails(addServicePath).get("servicePort")));
-//                }
-//            }
-//            String path1 = FileFinder.findCommonURLPrefix(nanoPath);
-//            Map<String, String> pathDetails = new HashMap<>();
-//            pathDetails.put(normalName, path1);
-//            String gatewayPath = FileFactory.gatewayServiceExisted(projectPath, normalName, pathDetails);
-//            if (gatewayPath != null) {
-//                Map<String, String> addSVCDetails = FileFactory.getServiceDetails(gatewayPath);
-//                serviceModifiedDetails.put(gatewayPath, ServiceReplaceUtils.getSVCModifiedDetails(addSVCDetails.get("serviceName"), addSVCDetails.get("servicePort")));
-////                serviceModifiedPaths.add(FileFactory.gatewayServiceExisted(projectPath, svcName, svcName1, svcName2, path1, path2));
-//            }
-//
-//
-//
-//        }
+        for (int i=0; i < allocation.size(); i++){
+            String nanoPath = nanoServicePaths.get(0);
+            String normalPath = normalServicePaths.get(allocation.get(i));
+            String nanoName = fileFactory.getServiceName(nanoPath);
+            String normalName = fileFactory.getServiceName(normalPath);
+            //将nanoPath路径下的内容合并到normalPath下，除了yaml文件和标有@SpringBootApplication注解的启动类文件外
+            FileFactory.mergePaths(nanoPath, normalPath);
+            //复制pom文件
+            DependencyUtils.mergeDependencies(nanoPath, normalPath);
+            //复制nanoPath路径下的application,yaml文件中指定的数据库中的内容到normalPath指定的数据库
+            Map<String,String> nanoDatabaseDetails = databaseUtils.getDatabaseDetails(this.fileFactory,nanoPath);
+            Map<String,String> normalDatabaseDetails = databaseUtils.getDatabaseDetails(this.fileFactory,normalPath);
+            DatabaseUtils.copyDatabase(nanoDatabaseDetails, normalDatabaseDetails, svcEntityMap.get(nanoName));
+
+            FileFactory.setSVCNameAndDBName(normalPath, normalName +"_" + nanoName, null);
+            //修改调用
+
+            ServiceReplaceUtils serviceReplaceUtils1 = new ServiceReplaceUtils(nanoName, normalName, null);
+            for(String serviceClassFile: serviceClassFiles){
+                if (serviceReplaceUtils1.serviceReplace(serviceClassFile)){
+                    String addServicePath = FileFinder.trimPathBeforeSrc(serviceClassFile);
+                    if (!serviceModifiedPaths.contains(addServicePath))
+                        serviceModifiedDetails.put(addServicePath, ServiceReplaceUtils.getSVCModifiedDetails(FileFactory.getServiceDetails(addServicePath).get("serviceName"), FileFactory.getServiceDetails(addServicePath).get("servicePort")));
+                }
+            }
+            String path1 = FileFinder.findCommonURLPrefix(nanoPath);
+            Map<String, String> pathDetails = new HashMap<>();
+            pathDetails.put(normalName, path1);
+            String gatewayPath = FileFactory.gatewayServiceExisted(projectPath, normalName, pathDetails);
+            if (gatewayPath != null) {
+                Map<String, String> addSVCDetails = FileFactory.getServiceDetails(gatewayPath);
+                serviceModifiedDetails.put(gatewayPath, ServiceReplaceUtils.getSVCModifiedDetails(addSVCDetails.get("serviceName"), addSVCDetails.get("servicePort")));
+//                serviceModifiedPaths.add(FileFactory.gatewayServiceExisted(projectPath, svcName, svcName1, svcName2, path1, path2));
+            }
+
+
+
+        }
 
         return serviceModifiedDetails;
     }
@@ -396,10 +390,6 @@ public class RPlanner {
         String application = "";
 
         List<String> applicationYamlOrProperties= fileFactory.getApplicationYamlOrPropertities(servicePath);
-//        if(applicationYamlOrProperties.size() == 1)
-//            application = applicationYamlOrProperties.get(0);
-//        System.out.println("application:::" +application);
-//
         Map<String,String> databaseDetails = databaseUtils.getDatabase(applicationYamlOrProperties);
         String sourceDatabaseName = databaseDetails.containsKey("sourceDatabaseName")? databaseDetails.get("sourceDatabaseName"): null;
         String svcName = FileFactory.getServiceDetails(servicePath).get("serviceName");
@@ -457,30 +447,8 @@ public class RPlanner {
                     }
                 }
             }
-//            serviceModifiedPaths.add(newFolderName1);
-//            serviceModifiedPaths.add(newFolderName2);
 
-            // split database
-
-
-
-
-
-            //修改调用源码
-//            ServiceReplaceUtils serviceReplaceUtils1 = new ServiceReplaceUtils(svcName, svcName1, Pattern.compile(".*(/api/v1/.*)?"));
-//            ServiceReplaceUtils serviceReplaceUtils1 = new ServiceReplaceUtils(svcName, svcName1, Pattern.compile( ".*(" + java.util.regex.Pattern.quote(path1) + ".*)?"));
-//            ServiceReplaceUtils serviceReplaceUtils2 = new ServiceReplaceUtils(svcName, svcName2, Pattern.compile(".*(" + java.util.regex.Pattern.quote(path2) + ".*)?"));
-//            String projectPath = fileFactory.getProjectPath(servicePath);
-//            List<String> serviceClassFiles = FileFinder.findServiceClasses(projectPath);
-//            for(String serviceClassFile: serviceClassFiles){
-//                if (serviceReplaceUtils1.serviceReplace(serviceClassFile) || serviceReplaceUtils2.serviceReplace(serviceClassFile)){
-//                    String addServicePath = FileFinder.trimPathBeforeSrc(serviceClassFile);
-//                    if (!serviceModifiedPaths.contains(addServicePath))
-//                        serviceModifiedDetails.put(addServicePath, ServiceReplaceUtils.getSVCModifiedDetails(FileFactory.getServiceDetails(addServicePath).get("serviceName"), FileFactory.getServiceDetails(addServicePath).get("servicePort")));
-////                        serviceModifiedPaths.add(addServicePath);
-//                }
-//            }
-        //如果存在spring cloud gateway网关服务，则更新路由,添加网关服务路径
+        // If spring cloud gateway service exist，update route rules,add path of gateway
             String gatewayPath = FileFactory.gatewayServiceExisted(projectPath, null, pathDetails);
             if (gatewayPath != null) {
                 Map<String, String> addSVCDetails = FileFactory.getServiceDetails(gatewayPath);
@@ -490,7 +458,7 @@ public class RPlanner {
             return serviceModifiedDetails;
         }
         else
-            return null;  //不拆分，只给建议
+            return null;  //no change，only give suggestions
 //        return serviceModifiedPaths;
 
     }

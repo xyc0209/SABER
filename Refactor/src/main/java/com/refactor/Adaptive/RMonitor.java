@@ -1,7 +1,9 @@
 package com.refactor.Adaptive;
 
+import co.elastic.clients.elasticsearch._types.SortOrder;
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
+import com.google.protobuf.ServiceException;
 import com.refactor.chain.analyzer.CallSeqAnalyzer;
 import com.refactor.chain.analyzer.extension.RepositoryParentExtraction;
 import com.refactor.chain.analyzer.init.JavaParserInitializer;
@@ -12,69 +14,78 @@ import com.refactor.chain.analyzer.parser.CodeParser;
 import com.refactor.chain.utils.CallSeqTree;
 import com.refactor.chain.utils.Edge;
 import com.refactor.chain.utils.Node;
+import com.refactor.dto.ResponseDTO;
+import com.refactor.enums.ResponseStatusEnum;
 import com.refactor.trace.SvcTransRes;
-import com.refactor.utils.Community;
-import com.refactor.utils.FileFactory;
-import com.refactor.utils.LouvainAlgorithm;
+import com.refactor.trace.TraceServiceInfo;
+import com.refactor.utils.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.stream.Collectors;
+import co.elastic.clients.elasticsearch._types.query_dsl.*;
+import co.elastic.clients.elasticsearch.core.SearchRequest;
+import co.elastic.clients.elasticsearch.core.SearchResponse;
+import co.elastic.clients.elasticsearch.core.search.Hit;
+import co.elastic.clients.json.JsonData;
 
 @Component
 public class RMonitor {
-    public void acceptLog(){
 
-    }
+    private static final Logger logger = LoggerFactory.getLogger(RMonitor.class);
 
-    public List<Node> acceptCallChain(String servicePath){
-               //遍历服务模块 构建Node chain
-        List<Node> nodes = new ArrayList<>();
+    @Autowired
+    private ElasticSearchQueryManager elasticSearchQueryManager;
 
-//        Node controller1 = new Node("Controller1", "Controller");
-//        Node controller3 = new Node("Controller3", "Controller");
-//        Node serviceImpl1 = new Node("ServiceImpl1", "ServiceImpl");
-//        Node repository1 = new Node("Repository1", "Repository");
-//        Node entity1 = new Node("Entity1", "Entity");
-//
-//        Node controller2 = new Node("Controller2", "Controller");
-//        Node serviceImpl2 = new Node("ServiceImpl2", "ServiceImpl");
-//        Node repository2 = new Node("Repository2", "Repository");
-//        Node entity2 = new Node("Entity2", "Entity");
-//
-//        controller1.addEdge(serviceImpl1);
-//        controller3.addEdge(serviceImpl1);
-//        serviceImpl1.addEdge(repository1);
-//        repository1.addEdge(entity1);
-//
-//        controller2.addEdge(serviceImpl2);
-//        serviceImpl2.addEdge(repository2);
-//        repository2.addEdge(entity2);
-//
-//        nodes.add(controller1);
-//        nodes.add(controller3);
-//        nodes.add(serviceImpl1);
-//        nodes.add(repository1);
-//        nodes.add(entity1);
-//
-//        nodes.add(controller2);
-//        nodes.add(serviceImpl2);
-//        nodes.add(repository2);
-//        nodes.add(entity2);
 
-        return nodes;
-    }
+    public ResponseDTO<List<SvcTransRes>> getResList(int interval) throws ServiceException {
+        String endTimeString = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        if (endTimeString == null || endTimeString.equals("")) {
+            return ResponseDTO.failure(ResponseStatusEnum.PARAM_IS_BLANK);
+        }
+        try {
+            SimpleDateFormat dateTimeFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            Date endTime = dateTimeFormatter.parse(endTimeString);
+            Date startTime = TimeUtil.calculateStartTime(endTime, interval);
+            logger.info("fetching traces from {} to {}",startTime,endTime);
 
-    public List<SvcTransRes> getResList(int windowSize){
-        return new ArrayList<>();
+            Query rangeQuery = elasticSearchQueryManager.createTimeRangeQuery("@timestamp", startTime, endTime);
+
+            SearchRequest request = new SearchRequest.Builder()
+                    .index(".ds-traces-apm*")
+                    .query(rangeQuery).timeout("10s")
+                    .size(5000)
+                    .sort(sort-> sort.field(f-> f.field("@timestamp").order(SortOrder.Asc)))
+                    .build();
+            List<TraceServiceInfo> traceServiceInfoList = elasticSearchQueryManager.executeSearch(request, TraceServiceInfo.class);
+
+            logger.info("收集到的traces条数:{}", traceServiceInfoList.size());
+            logger.info("收集到的traces:{}", traceServiceInfoList);
+            //存储每一条链路信息
+            Map<String, List<TraceServiceInfo>> stringListMap = TransactionUtils.parseData2TraceMap(traceServiceInfoList);
+            logger.info("链路条数:{}",stringListMap.size());
+            logger.info("链路输出:{}",stringListMap);
+            List<SvcTransRes> resList = TransactionUtils.analyzeTransaction(stringListMap, endTime, startTime, interval);
+
+            return ResponseDTO.success(resList);
+        } catch (IOException e) {
+            logger.error("Error executing Elasticsearch query", e);
+            throw new ServiceException("Error executing Elasticsearch query", e);
+        } catch (Exception e) {
+            logger.error("Unexpected error", e);
+            throw new ServiceException("Unexpected error occurred while fetching metrics", e);
+        }
+
     }
 
     public Map<String, List<Node>> getCommunities(String projectSrcPath) throws IOException {

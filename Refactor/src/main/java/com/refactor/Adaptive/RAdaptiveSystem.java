@@ -1,6 +1,7 @@
 package com.refactor.Adaptive;
 
 import com.github.javaparser.ParseException;
+import com.google.protobuf.ServiceException;
 import com.refactor.chain.analyzer.layer.LayerType;
 import com.refactor.chain.utils.Node;
 import com.refactor.dto.ChainKey;
@@ -57,50 +58,36 @@ public class RAdaptiveSystem {
             Map<String, Map<String, String>> serviceModifiedDetails = this.planner.planGod(callchain.get(servicePath), servicePath,  (int) Math.floor(averageSize));
             if (serviceModifiedDetails != null)
                 svcDetails.putAll(serviceModifiedDetails);
-//            for (Map.Entry<String, Map<String, String>> svcDetail : svcDetails.entrySet())
-//                executor.buildAndPushToHarbor(svcDetail);
+            for (Map.Entry<String, Map<String, String>> svcDetail : svcDetails.entrySet())
+                executor.buildAndPushToHarbor(svcDetail);
         }
         return svcDetails;
 
-//        List<String> megaPaths = this.analyser.detectGod();
-//        if(!megaPaths.isEmpty()){
-//            Map<String, Map<String, String>> svcDetails = new HashMap<>();
-//            for (String megaPath: megaPaths){
-//                List<Node>  callchain = this.monitor.getCommunities(megaPath);
-//                System.out.println("callchain"+ callchain.toString());
-//                svcDetails.putAll(this.planner.planGod(callchain, megaPath));
-//            }
-//            for (Map.Entry<String, Map<String, String>> svcDetail: svcDetails.entrySet())
-//                executor.buildAndPushToHarbor(svcDetail);
-//            return svcDetails;
-//        }
-//        else return null;
 
     }
 
-    public Map<String, Map<String, String>>  refactorNS(String projectPath) throws IOException, InterruptedException {
+    public Map<String, Map<String, String>>  refactorNS(String projectPath) throws IOException, InterruptedException, ServiceException {
         Map<String, List<Node>>  callchain = this.monitor.getCommunities(projectPath);
         Map<String, String> namePathMap = FileFactory.getNamePathMap(this.monitor, projectPath);
         Map<String, List<String>> svcEntityMap = FileFactory.getSvcEntityMap(this.monitor, projectPath, callchain);
         int windowSize = 1;
-        List<SvcTransRes> svcTransResList = this.monitor.getResList(windowSize);
+        List<SvcTransRes> svcTransResList = this.monitor.getResList(windowSize).getData();
         Map<String,List<String>> resultPaths = this.analyser.detectNano(namePathMap, svcEntityMap);
         if(!resultPaths.get("nano").isEmpty()){
             Map<String, Map<String, String>> svcDetails = this.planner.planNano(projectPath, svcTransResList, resultPaths.get("normal"), resultPaths.get("nano"), svcEntityMap, namePathMap);
 //
-//            for (Map.Entry<String, Map<String, String>> svcDetail: svcDetails.entrySet())
-//                executor.buildAndPushToHarbor(svcDetail);
-//            return svcDetails;
+            for (Map.Entry<String, Map<String, String>> svcDetail: svcDetails.entrySet())
+                executor.buildAndPushToHarbor(svcDetail);
+            return svcDetails;
         }
-//        else return null;
-        return null;
+        else return null;
 
     }
 
-    public Map<String, Map<String, String>> refactorCS(String projectPath,  ServiceDetail serviceDetailTrransfer) throws IOException, XmlPullParserException {
+    public Map<String, Map<String, String>> refactorCS(String projectPath,  ServiceDetail serviceDetailTrransfer) throws IOException, XmlPullParserException, ServiceException {
 
         int windowSize = 1;
-        List<SvcTransRes> svcTransResList = this.monitor.getResList(windowSize);
+        List<SvcTransRes> svcTransResList = this.monitor.getResList(windowSize).getData();
         List<Set<String>>  resultCSCall = this.analyser.detectCS(svcTransResList);
         if (!resultCSCall.isEmpty()) {
             serviceDetailTrransfer.setResultCSCall(resultCSCall);
@@ -114,10 +101,10 @@ public class RAdaptiveSystem {
 
     }
 
-    public Map<String, Map<String, String>> refactorSC(String projectPath,  ServiceDetail serviceDetailTrransfer) throws IOException, XmlPullParserException {
+    public Map<String, Map<String, String>> refactorSC(String projectPath,  ServiceDetail serviceDetailTrransfer) throws IOException, XmlPullParserException, ServiceException {
 
         int windowSize = 1;
-        List<SvcTransRes> svcTransResList = this.monitor.getResList(windowSize);
+        List<SvcTransRes> svcTransResList = this.monitor.getResList(windowSize).getData();
         Map<List<String>, Integer> resultMap = this.analyser.detectSC(svcTransResList);
         List<ChainKey> chainKeyList = new ArrayList<>();
         for (Map.Entry<List<String>, Integer> entry : resultMap.entrySet()) {
@@ -141,18 +128,18 @@ public class RAdaptiveSystem {
         List<String> servicePaths = FileFactory.getServicePaths(projectPath);
         Map<String, Map<String, UrlItem>> navDetails = this.analyser.detectNAV(servicePaths, namePathMap);
         System.out.println("navDetails" +navDetails.toString());
-//        if (!navDetails.isEmpty()) {
-//            Map<String, Map<String, String>> svcDetails = this.planner.planNAV(navDetails, namePathMap);
-//            if (svcDetails != null) {
-//                for (Map.Entry<String, Map<String, String>> svcDetail : svcDetails.entrySet())
-//                    executor.buildAndPushToHarbor(svcDetail);
-//                return svcDetails;
-//            } else
-//                return null;
-//        }
-//        else return null;
-        return null;
+        if (!navDetails.isEmpty()) {
+            Map<String, Map<String, String>> svcDetails = this.planner.planNAV(navDetails, namePathMap);
+            if (svcDetails != null) {
+                for (Map.Entry<String, Map<String, String>> svcDetail : svcDetails.entrySet())
+                    executor.buildAndPushToHarbor(svcDetail);
+                return svcDetails;
+            } else
+                return null;
+        }
+        else return null;
     }
+
     // REFACTOR Sharing Persistence
     public Map<String, Map<String, String>>  refactorSP(String projectPath) throws IOException {
         List<String> servicePaths = FileFactory.getServicePaths(projectPath);

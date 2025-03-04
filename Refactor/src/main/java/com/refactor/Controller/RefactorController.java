@@ -1,6 +1,7 @@
 package com.refactor.Controller;
 
 import com.github.javaparser.ParseException;
+import com.google.protobuf.ServiceException;
 import com.refactor.dto.RequestItem;
 import com.refactor.service.RefactorServiceImpl;
 
@@ -13,6 +14,7 @@ import com.refactor.agent.K8sClusterAgent;
 import java.io.IOException;
 
 @RestController
+@RequestMapping("/api/v1/mape")
 public class RefactorController {
     @Autowired
     private RefactorServiceImpl refactorService;
@@ -33,18 +35,18 @@ public class RefactorController {
         return "CONGRATULATION! REFACTOR MEGA SERVICE SUCCESS!";
     }
     @PostMapping("/refactor/cs")
-    public String resloveCS(@RequestBody RequestItem requestItem, @RequestHeader HttpHeaders httpHeaders) throws IOException, XmlPullParserException {
+    public String resloveCS(@RequestBody RequestItem requestItem, @RequestHeader HttpHeaders httpHeaders) throws IOException, XmlPullParserException, ServiceException {
         refactorService.resloveCS(requestItem.getServicesPath(), httpHeaders);
         return "CONGRATULATION! REFACTOR CHATTY SERVICE SUCCESS!";
     }
     @PostMapping("/refactor/sc")
-    public String resloveSC(@RequestBody RequestItem requestItem, @RequestHeader HttpHeaders httpHeaders) throws IOException, XmlPullParserException {
+    public String resloveSC(@RequestBody RequestItem requestItem, @RequestHeader HttpHeaders httpHeaders) throws IOException, XmlPullParserException, ServiceException {
         refactorService.resloveSC(requestItem.getServicesPath(), httpHeaders);
         return "CONGRATULATION! REFACTOR SERVICE CHAIN SUCCESS!";
     }
 
     @PostMapping("/refactor/ns")
-    public String resloveNS(@RequestBody RequestItem requestItem, @RequestHeader HttpHeaders httpHeaders) throws IOException, InterruptedException {
+    public String resloveNS(@RequestBody RequestItem requestItem, @RequestHeader HttpHeaders httpHeaders) throws IOException, InterruptedException, ServiceException {
         refactorService.resloveNS(requestItem.getServicesPath(), httpHeaders);
         return "CONGRATULATION! REFACTOR NANO SERVICE SUCCESS!";
     }
