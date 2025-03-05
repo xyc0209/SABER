@@ -163,7 +163,7 @@ public class RAdaptiveSystem {
 
     }
 
-    public Map<String, Map<String, String>> refactorNSDP(String projectPath) throws IOException, XmlPullParserException {
+    public Map<String, Object> refactorNSDP(String projectPath) throws IOException, XmlPullParserException {
         Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
         Map<String, String> detectedResult = this.analyser.detectNSDP(projectPath, filePathToMicroserviceName);
         boolean hasDiscovery = true;
@@ -179,7 +179,7 @@ public class RAdaptiveSystem {
         return null;
     }
 
-    public Map<String, Map<String, String>> refactorNAG(String projectPath) throws Exception {
+    public Map<String, Object> refactorNAG(String projectPath) throws Exception {
         Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
         int detectedResult = this.analyser.detectedNAG(projectPath, filePathToMicroserviceName);
         System.out.println(detectedResult);
@@ -199,7 +199,7 @@ public class RAdaptiveSystem {
         return null;
     }
 
-    public Map<String, Map<String, String>> refactorUS(String projectPath) throws XmlPullParserException, IOException {
+    public Map<String, Object> refactorUS(String projectPath) throws XmlPullParserException, IOException {
         Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
         Map<String, String> detectedResult = this.analyser.detectedUS(projectPath, filePathToMicroserviceName);
         Map<String, String> nsdp = this.analyser.detectNSDP(projectPath, filePathToMicroserviceName);
@@ -212,12 +212,13 @@ public class RAdaptiveSystem {
             }
         }
         if (detectedResult.size() != filePathToMicroserviceName.size()) {
-             return this.planner.planUS(projectPath, discovery);
+            return this.planner.planUS(projectPath, discovery);
+            // System.out.println(detectedResult);
         }
         return null;
     }
 
-    public Map<String, Map<String, String>> refactorEBSI(String projectPath) throws IOException {
+    public Map<String, Object> refactorEBSI(String projectPath) throws IOException {
         return this.planner.planEBSI(projectPath);
     }
 

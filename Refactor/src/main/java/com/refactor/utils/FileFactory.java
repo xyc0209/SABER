@@ -1563,6 +1563,21 @@ public static List<String> getJavaFiles(String servicesDirectory) throws IOExcep
         return filePathToMicroserviceName;
     }
 
+    public static String getMicroserviceName(String applicationPath) throws IOException {
+        Map<String, Object> configurations = new LinkedHashMap<>();
+        String microserviceName;
+        if (applicationPath.equals("yml") || applicationPath.equals("yaml")) {
+            Iterable<Object> objects = yamlReader.loadAll(Files.newInputStream(Paths.get(applicationPath)));
+            for (Object o: objects) {
+                YamlAndPropertiesParserUtils.resolveYaml(new Stack<>(), configurations, (Map<String, Object>) o);
+            }
+        } else {
+            YamlAndPropertiesParserUtils.resolveProperties(applicationPath, configurations);
+        }
+        microserviceName = configurations.getOrDefault("spring.application.name", "").toString();
+        return microserviceName;
+    }
+
     public static Map<String, String> getFilePathToMicroservicePort(String directory) throws IOException {
         Map<String, String> filePathToMicroservicePort = new LinkedHashMap<>();
         List<String> services = getServices(directory);
@@ -1643,6 +1658,11 @@ public static List<String> getJavaFiles(String servicesDirectory) throws IOExcep
             return file.getAbsolutePath();
         }
         return null;
+    }
+
+    public static boolean isFileExists(String filePath) {
+        Path path = Paths.get(filePath);
+        return Files.exists(path) && Files.isRegularFile(path);
     }
 }
 

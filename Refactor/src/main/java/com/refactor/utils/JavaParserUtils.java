@@ -15,13 +15,18 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.refactor.context.RestTemplateParameterContext;
 import com.refactor.context.StringVariableContext;
 import com.refactor.context.UrlContext;
+import com.refactor.detail.ModificationRecorder;
+import com.refactor.detail.model.CodeModification;
+import com.refactor.enumeration.ModificationType;
 import com.refactor.enumeration.RequestMethod;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -289,13 +294,17 @@ public class JavaParserUtils {
      * @param microserviceName 微服务名称
      * @param urls 一个微服务模块下声明的 URL 列表 每个元素前面添加了 PORT 提高匹配成功率
      */
-    public static void restTemplateUrlReplacer(String javaFile, String microserviceName, List<String> urls) throws IOException {
+    public static void restTemplateUrlReplacer(String javaFile, String microserviceName, List<String> urls, ModificationRecorder recorder) throws IOException {
+        Path path = Paths.get(javaFile);
+        String javaFileContent = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
         CompilationUnit compilationUnit = StaticJavaParser.parse(new File(javaFile));
         List<MethodDeclaration> methodDeclarations = compilationUnit.findAll(MethodDeclaration.class);
         // 针对每个方法声明进行修改
         for (MethodDeclaration methodDeclaration : methodDeclarations) {
             Map<String, StringVariableContext> variableNameAndValues = new LinkedHashMap<>();
+            // 获取类成员字段
             getStringFieldDeclaration(compilationUnit.findAll(FieldDeclaration.class), variableNameAndValues);
+            // 获取方法中的字符串变量
             getStringVariableNameAndValues(methodDeclaration, variableNameAndValues);
             stringVariableValueReplacer(variableNameAndValues, microserviceName, urls);
             RestTemplateParameterContext restTemplateParameterContext = new RestTemplateParameterContext(microserviceName, urls, variableNameAndValues);
@@ -303,7 +312,12 @@ public class JavaParserUtils {
             // System.out.println(variableNameAndValues);
         }
         // System.out.println(compilationUnit);
-        Files.write(Paths.get(javaFile), compilationUnit.toString().getBytes());
+        String newJavaFileContent = compilationUnit.toString();
+        if (!javaFileContent.equals(newJavaFileContent)) {
+            Files.write(path, newJavaFileContent.getBytes(StandardCharsets.UTF_8));
+            recorder.addRecord(microserviceName,
+                    new CodeModification(javaFile, ModificationType.CODE_CHANGE, null, microserviceName, "替换 RestTemplate 请求 URL"));
+        }
     }
 
     private static void getStringFieldDeclaration(List<FieldDeclaration> fieldDeclarations, Map<String, StringVariableContext> variableNameAndValue) {

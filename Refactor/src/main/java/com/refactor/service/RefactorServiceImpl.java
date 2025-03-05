@@ -154,8 +154,10 @@ public class RefactorServiceImpl {
         return re.getBody();
     }
     public String resolveNAG(String projectPath, HttpHeaders httpHeaders) throws Exception {
-        Map<String, Map<String, String>> serviceDetails = rAdaptiveSystem.refactorNAG(projectPath);
-        HttpEntity requestEntity = new HttpEntity(serviceDetails, httpHeaders);
+        Map<String, Object> modificationInfo = rAdaptiveSystem.refactorNAG(projectPath);
+        if (modificationInfo == null)
+            return "No code refactoring to eliminate NAG";
+        HttpEntity requestEntity = new HttpEntity(modificationInfo.getOrDefault("serviceModifiedDetails", null), httpHeaders);
         ResponseEntity<String> re = restTemplate.exchange(
                 "http://" + clusterIPandPort + "api/v1/clusteragent/deployNAG",
                 HttpMethod.POST,
@@ -169,8 +171,8 @@ public class RefactorServiceImpl {
      * No Service Discovery Pattern
      */
     public String resolveNSDP(String projectPath, HttpHeaders httpHeaders) throws IOException, XmlPullParserException {
-        Map<String, Map<String, String>> serviceDetails = rAdaptiveSystem.refactorNSDP(projectPath);
-        HttpEntity requestEntity = new HttpEntity(serviceDetails, httpHeaders);
+        Map<String, Object> modificationInfo = rAdaptiveSystem.refactorNSDP(projectPath);
+        HttpEntity requestEntity = new HttpEntity(modificationInfo.getOrDefault("serviceModifiedDetails", null), httpHeaders);
         ResponseEntity<String> re = restTemplate.exchange(
                 "http://" + clusterIPandPort + "api/v1/clusteragent/deployNSDP",
                 HttpMethod.POST,
@@ -184,8 +186,10 @@ public class RefactorServiceImpl {
      * Unnecessary Settings
      */
     public String resolveUS(String projectPath, HttpHeaders httpHeaders) throws XmlPullParserException, IOException {
-        Map<String, Map<String, String>> serviceDetails = rAdaptiveSystem.refactorUS(projectPath);
-        HttpEntity requestEntity = new HttpEntity(serviceDetails, httpHeaders);
+        Map<String, Object> modificationInfo = rAdaptiveSystem.refactorUS(projectPath);
+        if (modificationInfo == null)
+            return "No code refactoring to eliminate US";
+        HttpEntity requestEntity = new HttpEntity(modificationInfo.getOrDefault("serviceModifiedDetails", null), httpHeaders);
         ResponseEntity<String> re = restTemplate.exchange(
                 "http://" + clusterIPandPort + "api/v1/clusteragent/deployUS",
                 HttpMethod.POST,
@@ -199,8 +203,8 @@ public class RefactorServiceImpl {
      * Endpoint Based Service Interaction
      */
     public String resolveEBSI(String projectPath, HttpHeaders httpHeaders) throws IOException {
-        Map<String, Map<String, String>> serviceDetails = rAdaptiveSystem.refactorEBSI(projectPath);
-        HttpEntity requestEntity = new HttpEntity(serviceDetails, httpHeaders);
+        Map<String, Object> modificationInfo = rAdaptiveSystem.refactorEBSI(projectPath);
+        HttpEntity requestEntity = new HttpEntity(modificationInfo.getOrDefault("serviceModifiedDetails", null), httpHeaders);
         ResponseEntity<String> re = restTemplate.exchange(
                 "http://" + clusterIPandPort + "api/v1/clusteragent/deployEBSI",
                 HttpMethod.POST,
