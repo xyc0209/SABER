@@ -1640,16 +1640,27 @@ public static List<String> getJavaFiles(String servicesDirectory) throws IOExcep
     }
 
     public static boolean deleteFile(String filePath) {
-        File file = new File(filePath);
-        return file.delete();
+        try {
+            Path path = Paths.get(filePath);
+            Files.delete(path); // 删除文件，若失败会抛出异常
+            return true;
+        } catch (IOException e) {
+            System.err.println("删除失败：" + e.getMessage());
+            return false;
+        }
     }
 
     public static String createFile(String filePath) throws IOException {
-        File file = new File(filePath);
-        if (file.createNewFile()) {
-            return file.getAbsolutePath();
+        try {
+            Path path = Paths.get(filePath);
+            // 自动创建父目录并生成空文件
+            Files.createDirectories(path.getParent()); // 创建父目录
+            Files.createFile(path); // 创建文件
+            return path.toString();
+        } catch (IOException e) {
+            System.err.println("创建失败：" + e.getMessage());
+            return null;
         }
-        return null;
     }
 
     public static String createDirectory(String filePath) {
