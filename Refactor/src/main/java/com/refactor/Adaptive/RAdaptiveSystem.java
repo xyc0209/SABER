@@ -194,7 +194,10 @@ public class RAdaptiveSystem {
                 }
             }
             System.out.println(discovery);
-            return this.planner.planNAG(projectPath, discovery);
+            Long startTime = System.currentTimeMillis();
+            Map<String, Object> result = this.planner.planNAG(projectPath, discovery);
+            System.out.println("Time taken: " + (System.currentTimeMillis() - startTime) + " milliseconds");
+            return result;
         }
         return null;
     }
@@ -218,8 +221,13 @@ public class RAdaptiveSystem {
         return null;
     }
 
-    public Map<String, Object> refactorEBSI(String projectPath) throws IOException {
-        return this.planner.planEBSI(projectPath);
+    public Map<String, Object> refactorEBSI(String projectPath) throws IOException, XmlPullParserException {
+        Map<String, List<String>> detectedResult = this.analyser.detectedEBSI(projectPath, FileFactory.getFilePathToMicroserviceName(projectPath));
+        System.out.println(detectedResult);
+        Long startTime = System.currentTimeMillis();
+        Map<String, Object> result = this.planner.planEBSI(projectPath, detectedResult);
+        System.out.println("Time taken: " + (System.currentTimeMillis() - startTime) + " milliseconds");
+        return result;
     }
 
     public static void main(String[] args) throws IOException, ParseException, XmlPullParserException, InterruptedException {

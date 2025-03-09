@@ -94,7 +94,7 @@ public class RefactorController {
     }
 
     @PostMapping("/refactor/ebsi")
-    public String resloveEBSI(@RequestBody RequestItem requestItem, @RequestHeader HttpHeaders httpHeaders) throws IOException {
+    public String resloveEBSI(@RequestBody RequestItem requestItem, @RequestHeader HttpHeaders httpHeaders) throws IOException, XmlPullParserException {
         refactorService.resolveEBSI(requestItem.getServicesPath(), httpHeaders);
         return "CONGRATULATION! REFACTOR ENDPOINT BASED SERVICE INTERACTION SUCCESS!";
     }

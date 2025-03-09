@@ -64,6 +64,23 @@ public class JavaParserUtils {
         }
     }
 
+    public static boolean containsEndPointBasedInteraction(String javaFile) throws FileNotFoundException {
+        CompilationUnit compilationUnit = StaticJavaParser.parse(new File(javaFile));
+        List<Object> flag = new LinkedList<>();
+        new StringLiteralExprVisitor().visit(compilationUnit, flag);
+        return !flag.isEmpty();
+    }
+
+    private static class StringLiteralExprVisitor extends VoidVisitorAdapter<List<Object>> {
+        @Override
+        public void visit(StringLiteralExpr n, List<Object> arg) {
+            Matcher matcher = REGEX_PATTERN.matcher(n.getValue());
+            if (matcher.find()) {
+                arg.add(n);
+            }
+        }
+    }
+
     /**
      * 判断是否为启动类
      * @param javaFile java 文件路径
@@ -311,9 +328,10 @@ public class JavaParserUtils {
             new HttpRequestStringVisitor().visit(methodDeclaration, restTemplateParameterContext);
             // System.out.println(variableNameAndValues);
         }
-        // System.out.println(compilationUnit);
+        System.out.println(compilationUnit);
         String newJavaFileContent = compilationUnit.toString();
         if (!javaFileContent.equals(newJavaFileContent)) {
+            System.out.println("-----\n" + newJavaFileContent);
             Files.write(path, newJavaFileContent.getBytes(StandardCharsets.UTF_8));
             recorder.addRecord(microserviceName,
                     new CodeModification(javaFile, ModificationType.CODE_CHANGE, null, microserviceName, "替换 RestTemplate 请求 URL"));
@@ -518,6 +536,7 @@ public class JavaParserUtils {
             for (String url : urls) {
                 // 字符串中包含 URL 则替换
                 if (n.getValue().contains(url)) {
+                    System.out.println("替换前：" + n.getValue());
                     replaceIpPort(n, microserviceName);
                 }
             }
@@ -584,7 +603,9 @@ public class JavaParserUtils {
     private static void replaceIpPort(StringLiteralExpr n, String microserviceName) {
         Matcher matcher = REGEX_PATTERN.matcher(n.getValue());
         if (matcher.find()) {
+            System.out.println("before: " + n);
             n.setValue(matcher.replaceAll(microserviceName));
+            System.out.println("after: " + n);
         }
     }
 

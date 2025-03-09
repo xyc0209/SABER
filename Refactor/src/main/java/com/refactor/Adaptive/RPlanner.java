@@ -16,6 +16,7 @@ import com.refactor.detail.model.CodeModification;
 import com.refactor.dto.ISIInfo;
 import com.refactor.dto.SvcCallDetail;
 import com.refactor.enumeration.ModificationType;
+import com.refactor.enumeration.RefactorType;
 import com.refactor.enumeration.TemplateFile;
 import com.refactor.suggest.RefactorISISuggestion;
 import com.refactor.suggest.RefactorSPSuggestion;
@@ -552,7 +553,9 @@ public class RPlanner {
     }
 
     public Map<String, Object> planNSDP(String projectPath, Map<String, String> serviceDetails) throws XmlPullParserException, IOException {
-        ModificationRecorder recorder = new ModificationRecorder();
+        // 获取系统 pom 信息
+        SystemMavenInfo systemMavenInfo = MavenParserUtils.getSystemMavenInfo(projectPath);
+        ModificationRecorder recorder = new ModificationRecorder(systemMavenInfo, RefactorType.No_Service_Discovery_Pattern);
         Map<String, Object> modificationInfo = new HashMap<>();
         // 标识服务发现组件类型
         String discovery = "nacos";
@@ -588,8 +591,6 @@ public class RPlanner {
                 }
             }
         }
-        // 获取系统 pom 信息
-        SystemMavenInfo systemMavenInfo = MavenParserUtils.getSystemMavenInfo(projectPath);
         if ("eureka".equals(discovery)) { // 使用的是 eureka
             if (eurekaServerPath.isEmpty()) { // 不存在 eureka-server
                 // 获取 Eureka 服务端模板
@@ -675,10 +676,10 @@ public class RPlanner {
     }
 
     public Map<String, Object> planNAG(String projectPath, String discovery) throws Exception {
-        ModificationRecorder recorder = new ModificationRecorder();
         Map<String, Object> modificationInfo = new HashMap<>();
         // 获取系统 pom 信息
         SystemMavenInfo systemMavenInfo = MavenParserUtils.getSystemMavenInfo(projectPath);
+        ModificationRecorder recorder = new ModificationRecorder(systemMavenInfo, RefactorType.No_Api_Gateway);
         // 获取模板文件
         SpringBootProjectDownloaderUtils.downloadProject("gateway",
                 systemMavenInfo.getGroupId(), "gateway", systemMavenInfo.getGroupId() + "." + "gateway",
@@ -687,7 +688,7 @@ public class RPlanner {
         // 模块添加
         MavenParserUtils.addModule(projectPath, "gateway");
         recorder.addRecord(projectPath,
-                new CodeModification(projectPath, ModificationType.MODULE_ADD, null, "gateway", "添加网关模块"));
+                new CodeModification(projectPath, ModificationType.MODULE_ADD, null, "gateway", "Add gateway module"));
         // 新模块的 pom 文件路径
         String gatewayPomXml = projectPath + File.separator + "gateway" + File.separator + "pom.xml";
         // 设置父 pom 信息
@@ -701,8 +702,15 @@ public class RPlanner {
         FileFactory.updateApplicationYamlOrProperties(gatewayYamlPath, TemplateFile.GATEWAY);
         if ("eureka".equals(discovery)) {
             MavenParserUtils.addMavenDependencies(gatewayPomXml, dependenciesConfig.getEurekaClient());
+            recorder.addRecord("gateway",
+                    new CodeModification(gatewayPomXml, ModificationType.DEPENDENCY_ADD, null, "org.springframework.cloud:spring-cloud-starter-netflix-eureka-client", "Add Eureka client dependency"));
         } else if ("nacos".equals(discovery)) {
             MavenParserUtils.addMavenDependencies(gatewayPomXml, dependenciesConfig.getNacos());
+            recorder.addRecord("gateway",
+                    new CodeModification(gatewayPomXml, ModificationType.DEPENDENCY_ADD, null, "com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-discovery", "Add Nacos dependency"));
+            YamlAndPropertiesParserUtils.updateApplicationYaml(gatewayYamlPath, TemplateFile.NACOS_CLIENT);
+            recorder.addRecord("gateway",
+                    new CodeModification(gatewayYamlPath, ModificationType.CONFIG_UPDATE, null, YamlAndPropertiesParserUtils.resolveSpecifiedTemplateYaml(TemplateFile.NACOS_CLIENT).toString(), "Add Nacos configuration"));
         }
         Map<String, Set<String>> microserviceNameToPreUrls = new LinkedHashMap<>();
         for (String filePath: filePathToMicroserviceName.keySet()) {
@@ -725,6 +733,9 @@ public class RPlanner {
         }
         Map<String, Object> springCloudGateway = YamlAndPropertiesParserUtils.getSpringCloudGateway(microserviceNameToPreUrls);
         YamlAndPropertiesParserUtils.updateApplicationYaml(gatewayYamlPath, YamlAndPropertiesParserUtils.removeCustomClasses(springCloudGateway, GatewayConfig.class));
+        recorder.addRecord("gateway",
+                new CodeModification(gatewayYamlPath, ModificationType.CONFIG_UPDATE, null,
+                        YamlAndPropertiesParserUtils.removeCustomClasses(springCloudGateway, GatewayConfig.class).toString(), "Add gateway configuration"));
         Map<String, Map<String, String>> serviceModifiedDetails = new HashMap<>();
         serviceModifiedDetails.put("gateway", FileFactory.getServiceDetails(projectPath + File.separator + "gateway"));
         modificationInfo.put("serviceModifiedDetails", serviceModifiedDetails);
@@ -734,9 +745,9 @@ public class RPlanner {
 
     public Map<String, Object> planUS(String projectPath, String discovery) throws IOException, XmlPullParserException {
         Map<String, Object> modificationInfo = new HashMap<>();
-        ModificationRecorder recorder = new ModificationRecorder();
         Map<String, Map<String, String>> serviceModifiedDetails = new HashMap<>();
         SystemMavenInfo systemMavenInfo = MavenParserUtils.getSystemMavenInfo(projectPath);
+        ModificationRecorder recorder = new ModificationRecorder(systemMavenInfo, RefactorType.Unnecessary_Settings);
         // 增加模块
         SpringBootProjectDownloaderUtils.downloadProject("config-server",
                 systemMavenInfo.getGroupId(), "config-server", systemMavenInfo.getGroupId() + "." + "configserver",
@@ -804,13 +815,13 @@ public class RPlanner {
         return modificationInfo;
     }
 
-    public Map<String, Object> planEBSI(String projectPath) throws IOException {
+    public Map<String, Object> planEBSI(String projectPath, Map<String, List<String>> detectedResult) throws IOException, XmlPullParserException {
         Map<String, Object> modificationInfo = new LinkedHashMap<>();
-        ModificationRecorder recorder = new ModificationRecorder();
+        ModificationRecorder recorder = new ModificationRecorder(MavenParserUtils.getSystemMavenInfo(projectPath), RefactorType.Endpoint_Based_Service_Interaction);
         Map<String, Map<String, String>> serviceModifiedDetails = new HashMap<>();
         Map<String, String> filePathToMicroserviceName = FileFactory.getFilePathToMicroserviceName(projectPath);
         Map<String, String> filePathToMicroservicePort = FileFactory.getFilePathToMicroservicePort(projectPath);
-        Map<String, List<String>> filePathToUrls = new LinkedHashMap<>();
+        Map<String, String> urlToMicroserviceName = new LinkedHashMap<>();
         for (String filePath: filePathToMicroserviceName.keySet()) {
             List<String> javaFiles = FileFactory.getJavaFiles(filePath);
             List<String> urls = new LinkedList<>();
@@ -820,17 +831,23 @@ public class RPlanner {
                     urls.add(filePathToMicroservicePort.get(filePath) + url);
                 }
             }
-            filePathToUrls.put(filePath, urls);
-            // System.out.println(urls);
-        }
-        for (String filePath: filePathToUrls.keySet()) {
-            String microserviceName = filePathToMicroserviceName.get(filePath);
-            List<String> javaFiles = FileFactory.getJavaFiles(filePath);
-            for (String javaFile: javaFiles) {
-                JavaParserUtils.restTemplateUrlReplacer(javaFile, microserviceName, filePathToUrls.get(filePath), recorder);
+            for (String url: urls) {
+                if (!url.isEmpty()) {
+                    urlToMicroserviceName.put(url, filePathToMicroserviceName.get(filePath));
+                }
             }
         }
-        for (String filePath : filePathToMicroserviceName.keySet()) {
+        System.out.println(urlToMicroserviceName);
+        for (String url: urlToMicroserviceName.keySet()) {
+            String microserviceName = urlToMicroserviceName.get(url);
+            for (String filePath: detectedResult.keySet()) {
+                List<String> javaFiles = detectedResult.get(filePath);
+                for (String javaFile : javaFiles) {
+                    JavaParserUtils.restTemplateUrlReplacer(javaFile, microserviceName, Collections.singletonList(url), recorder);
+                }
+            }
+        }
+        for (String filePath : detectedResult.keySet()) {
             serviceModifiedDetails.put(filePathToMicroserviceName.get(filePath), FileFactory.getServiceDetails(filePath));
         }
         modificationInfo.put("serviceModifiedDetails", serviceModifiedDetails);

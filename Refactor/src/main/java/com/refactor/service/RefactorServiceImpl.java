@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -157,13 +159,19 @@ public class RefactorServiceImpl {
         Map<String, Object> modificationInfo = rAdaptiveSystem.refactorNAG(projectPath);
         if (modificationInfo == null)
             return "No code refactoring to eliminate NAG";
-        HttpEntity requestEntity = new HttpEntity(modificationInfo.getOrDefault("serviceModifiedDetails", null), httpHeaders);
+        System.out.println(modificationInfo.getOrDefault("serviceModifiedDetails", null));
+        ServiceDetail serviceDetailTrransfer = new ServiceDetail();
+        serviceDetailTrransfer.setServiceDetail((Map<String, Map<String, String>>) modificationInfo.getOrDefault("serviceModifiedDetails", null));
+        Long startTime = System.currentTimeMillis();
+        HttpEntity requestEntity = new HttpEntity(serviceDetailTrransfer, httpHeaders);
         ResponseEntity<String> re = restTemplate.exchange(
                 "http://" + clusterIPandPort + "api/v1/clusteragent/deployNAG",
                 HttpMethod.POST,
                 requestEntity,
                 String.class
         );
+        System.out.println("Time taken: " + (System.currentTimeMillis() - startTime));
+        Files.write(Paths.get("modificationRecords.txt"), ((String) modificationInfo.get("modificationRecords")).getBytes());
         return re.getBody();
     }
 
@@ -202,15 +210,22 @@ public class RefactorServiceImpl {
     /**
      * Endpoint Based Service Interaction
      */
-    public String resolveEBSI(String projectPath, HttpHeaders httpHeaders) throws IOException {
+    public String resolveEBSI(String projectPath, HttpHeaders httpHeaders) throws IOException, XmlPullParserException {
         Map<String, Object> modificationInfo = rAdaptiveSystem.refactorEBSI(projectPath);
-        HttpEntity requestEntity = new HttpEntity(modificationInfo.getOrDefault("serviceModifiedDetails", null), httpHeaders);
+        System.out.println(modificationInfo.getOrDefault("serviceModifiedDetails", null));
+        ServiceDetail serviceDetailTrransfer = new ServiceDetail();
+        serviceDetailTrransfer.setServiceDetail((Map<String, Map<String, String>>) modificationInfo.getOrDefault("serviceModifiedDetails", null));
+        HttpEntity requestEntity = new HttpEntity(serviceDetailTrransfer, httpHeaders);
+        Long startTime = System.currentTimeMillis();
         ResponseEntity<String> re = restTemplate.exchange(
                 "http://" + clusterIPandPort + "api/v1/clusteragent/deployEBSI",
                 HttpMethod.POST,
                 requestEntity,
                 String.class
         );
+        Long endTime = System.currentTimeMillis();
+        System.out.println("Time taken: " + (endTime - startTime) + " milliseconds");
         return re.getBody();
+        // return null;
     }
 }

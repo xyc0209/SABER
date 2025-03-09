@@ -381,24 +381,14 @@ public class RAnalyser {
      */
     public Map<String, List<String>> detectedEBSI(String projectPath, Map<String, String> filePathToMicroserviceName) throws IOException {
         Map<String, List<String>> result = new LinkedHashMap<>();
-        Map<String, String> filePathToMicroservicePort = FileFactory.getFilePathToMicroservicePort(projectPath);
         for (String currentFilePath: filePathToMicroserviceName.keySet()) {
-            String microserviceName = filePathToMicroserviceName.get(currentFilePath);
             List<String> currentJavaFiles = FileFactory.getJavaFiles(currentFilePath);
-            List<String> urls = new LinkedList<>(); // 存储当前模块所有接口的 url
             for (String javaFile: currentJavaFiles) {
-                Map<String, String> methodToApi = JavaParserUtils.getMethodToApi(new File(javaFile));
-                for (String url: methodToApi.values()) {
-                    urls.add(filePathToMicroservicePort.get(currentFilePath) + url); // 添加端口
-                }
-            }
-            for (String filePath: filePathToMicroserviceName.keySet()) {
-                List<String> javaFiles = FileFactory.getJavaFiles(filePath);
-                for (String javaFile: javaFiles) {
-                    if (!result.containsKey(microserviceName)) {
-                        result.put(microserviceName, new LinkedList<>());
+                if (JavaParserUtils.containsEndPointBasedInteraction(javaFile)) {
+                    if (!result.containsKey(currentFilePath)) {
+                        result.put(currentFilePath, new ArrayList<>());
                     }
-                    result.get(microserviceName).add(javaFile);
+                    result.get(currentFilePath).add(javaFile);
                 }
             }
         }

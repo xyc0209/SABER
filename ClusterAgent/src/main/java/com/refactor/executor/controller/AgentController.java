@@ -113,7 +113,7 @@ public class AgentController {
     @PostMapping("/deployNSDP")
     public String deployNSDPBatch(@RequestBody ServiceDetail serviceDetail) throws ApiException {
         Map<String, Map<String, String>> svcDetail = serviceDetail.getServiceDetail();
-        k8sClusterAgent.createDeploymentCSByBatch(serviceDetail.getResultCSCall(), svcDetail);
+        k8sClusterAgent.createDeploymentByBatch(svcDetail);
         k8sClusterAgent.deleteResourcesByBatch(svcDetail);
         ingressAgent.operateIngressByBatch(k8sClusterAgent.getClient(), svcDetail);
         return "ALL OPERATIONS SUCCESS";
@@ -122,7 +122,7 @@ public class AgentController {
     @PostMapping("/deployUS")
     public String deployUSBatch(@RequestBody ServiceDetail serviceDetail) throws ApiException {
         Map<String, Map<String, String>> svcDetail = serviceDetail.getServiceDetail();
-        k8sClusterAgent.createDeploymentCSByBatch(serviceDetail.getResultCSCall(), svcDetail);
+        k8sClusterAgent.createDeploymentByBatch(svcDetail);
         k8sClusterAgent.deleteResourcesByBatch(svcDetail);
         ingressAgent.operateIngressByBatch(k8sClusterAgent.getClient(), svcDetail);
         return "ALL OPERATIONS SUCCESS";
@@ -130,9 +130,11 @@ public class AgentController {
 
     @PostMapping("/deployNAG")
     public String deployNAGBatch(@RequestBody ServiceDetail serviceDetail) throws ApiException {
+        System.out.println(serviceDetail);
         Map<String, Map<String, String>> svcDetail = serviceDetail.getServiceDetail();
-        k8sClusterAgent.createDeploymentCSByBatch(serviceDetail.getResultCSCall(), svcDetail);
         k8sClusterAgent.deleteResourcesByBatch(svcDetail);
+        k8sClusterAgent.createDeploymentByBatch(svcDetail);
+        // k8sClusterAgent.deleteResourcesByBatch(svcDetail);
         ingressAgent.operateIngressByBatch(k8sClusterAgent.getClient(), svcDetail);
         return "ALL OPERATIONS SUCCESS";
     }
@@ -140,8 +142,9 @@ public class AgentController {
     @PostMapping("/deployEBSI")
     public String deployEBSIBatch(@RequestBody ServiceDetail serviceDetail) throws ApiException {
         Map<String, Map<String, String>> svcDetail = serviceDetail.getServiceDetail();
-        k8sClusterAgent.createDeploymentCSByBatch(serviceDetail.getResultCSCall(), svcDetail);
         k8sClusterAgent.deleteResourcesByBatch(svcDetail);
+        k8sClusterAgent.createDeploymentByBatch(svcDetail);
+        // k8sClusterAgent.deleteResourcesByBatch(svcDetail);
         ingressAgent.operateIngressByBatch(k8sClusterAgent.getClient(), svcDetail);
         return "ALL OPERATIONS SUCCESS";
     }
