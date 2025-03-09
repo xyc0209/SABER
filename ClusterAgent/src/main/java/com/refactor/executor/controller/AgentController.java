@@ -48,11 +48,11 @@ public class AgentController {
     public String deployBatch(@RequestBody ServiceDetail serviceDetail){
         System.out.println("serviceDetail"+serviceDetail.toString());
         Map<String, Map<String, String>> svcDetail =serviceDetail.getServiceDetail();
-        //deploy new resources
+        //deploy new resources and delete old rresources
         System.out.println(k8sClusterAgent.createDeploymentByBatch(svcDetail));
 
         //delete original resources
-        k8sClusterAgent.deleteResourcesByBatch(svcDetail);
+//        k8sClusterAgent.deleteResourcesByBatch(svcDetail);
 
         // update routes, if ingress exists
         ingressAgent.operateIngressByBatch(k8sClusterAgent.getClient(), svcDetail);
